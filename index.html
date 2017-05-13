@@ -44,16 +44,24 @@
 			<img id="unselectedX" src="images/UnselectedXMenuIcon.png" width="20" height="12">
 			<img id="selectedX" src="images/SelectedXMenuIcon.png" width="20" height="12">
 
+			<img id="items" src="images/ItemsMenuIcon.png" width="120" height="100">
+			<img id="herb1" src="images/Supply1Placeholder.png" width="120" height="100">
+			<img id="rod1" src="images/Supply2Placeholder.png" width="120" height="100">
+			<img id="wood1" src="images/Supply3Placeholder.png" width="120" height="100">
+			<img id="shield1" src="images/Supply4Placeholder.png" width="120" height="100">
+			<img id="tome1" src="images/Supply5Placeholder.png" width="120" height="100">
+
 			<img id="theButtonIdle" src="images/TheButtonIdle.png" width="120" height="48">
 			<img id="theButtonHover" src="images/TheButtonHover.png" width="120" height="48">
 			<img id="theButtonClick" src="images/TheButtonClicked.png" width="120" height="48">
-
-			<img id="stepsTest" src="images/AuxTest.png" width="120" height="140">
 		</div>
 
 		<script>
 			var gameState = "idle";
+			var gamePrev = "";
 			var pixelSize = 4;
+
+			var blah = document.getElementById("environment");
 
 			var mainScreen = document.getElementById("screenBack");
 			var ctxMain = mainScreen.getContext("2d");
@@ -81,38 +89,10 @@
 			var xSelectIcon = document.getElementById("selectedX");
 			var xUnselectIcon = document.getElementById("unselectedX");
 
-			var monsterStatTable = [
-				{
-					species : "",
-					nickname : "",
-
-					level : 0,
-					hearts : 0,
-					health : 0,
-					guts : 0,
-					wits : 0,
-					skill : 0,
-					speed : 0,
-					geswoleLimit : 0,
-					moveList : [],
-					knownMoves : [],
-
-					miniGuts : 0,
-					miniWits : 0,
-					miniSkill : 0,
-
-					affection : 0,
-					distanceWalked : 0,
-
-					borrowedPower : [],
-					fruitPower : []
-				}
-			];
-
 			var animationQueue = [];
 			var animationIsRecord = true;
 
-			function AnimationObject (sprite, coordX, coordY, ctx, screen, input, f1, d1, q1, w1, e1, c1, o1, f2, d2, q2, w2, e2, c2, o2,  f3, 					d3, q3, w3, e3, c3, o3, f4, d4, q4, w4, e4, c4, o4, f5, d5, q5, w5, e5, c5, o5, f6, d6, q6, w6, e6, c6, o6) {
+			function AnimationObject (sprite, coordX, coordY, ctx, screen, input, f1, d1, q1, w1, e1, c1, o1, f2, d2, q2, w2, e2, c2, o2,  f3, d3, q3, w3, e3, c3, o3, f4, d4, q4, w4, e4, c4, o4, f5, d5, q5, w5, e5, c5, o5, f6, d6, q6, w6, e6, c6, o6) {
 				this.sprite = sprite;
 				this.coordX = coordX;
 				this.coordY = coordY;
@@ -219,10 +199,26 @@
 				}
 
 				if (f4 == undefined) {
-					this.functionArray[2].isDone = true;
+					this.functionArray[3].isDone = true;
+				}
+
+				if (f5 == undefined) {
+					this.functionArray[4].isDone = true;
+				}
+
+				if (f6 == undefined) {
+					this.functionArray[5].isDone = true;
 				}
 			}
 
+			var listPointer = 0;
+			var listAnchor = "";
+			var listDoRun = false;
+			var listTextColor = textOnWhite;
+			var listArray = [];
+			var listDisplayCount = 0;
+
+			var menuPipGenerate = true;
 			var menuPointer = 0;
 			var menuAnchor = 0;
 			var menuPips = 0;
@@ -248,7 +244,7 @@
 					title : "GAMES",
 					sprite : minigameIcon,
 					description : "PLAY TO LOWER THE STEP COUNT.",
-					referNext : 0,
+					referNext : 3,
 					referEnter : 2,
 					isDisplayed : true
 				},
@@ -261,27 +257,27 @@
 					isDisplayed : true
 				},
 				{	
-					title : "STROBE 3",
-					sprite : strobeIcon,
-					description : "TEST FOR SCREEN REFRESH RATE.",
+					title : "ITEMS",
+					sprite : items,
+					description : "MANAGE AND USE YOUR GEAR.",
 					referNext : 0,
-					referEnter : 0,
+					referEnter : 4,
 					isDisplayed : true
 				},
 				{	
-					title : "STROBE 4",
-					sprite : strobeIcon,
-					description : "TEST FOR SCREEN REFRESH RATE.",
-					referNext : 0,
-					referEnter : 0,
+					title : "LOOT",
+					sprite : minigameIcon,
+					description : "EXAMINE YOUR LOOT.",
+					referNext : 5,
+					referEnter : drawItems,
 					isDisplayed : true
 				},
 				{	
-					title : "STROBE 5",
+					title : "CRAFT",
 					sprite : strobeIcon,
-					description : "TEST FOR SCREEN REFRESH RATE.",
+					description : "REFINE AND MAKE NEW ITEMS.",
 					referNext : 0,
-					referEnter : 0,
+					referEnter : drawCrafting,
 					isDisplayed : true
 				},
 				{	
@@ -292,10 +288,172 @@
 					referEnter : 0,
 					isDisplayed : true
 				}
-			]
+			];
+
+			var monsterPointer = 0;
+			var monsterBlink = 0;
+
+			var monsterStatTable = [
+				{
+					species : "",
+					nickname : "",
+					sprite : "",
+
+					level : 0,
+					hearts : 0,
+					maxHealth: 0,
+					currentHealth : 0,
+					guts : 0,
+					wits : 0,
+					skill : 0,
+					speed : 0,
+					geswoleLimit : 0,
+					moveList : [],
+					knownMoves : [],
+					moveCooldown : 0,
+					currentRelic: {},
+
+					miniGuts : 0,
+					miniWits : 0,
+					miniSkill : 0,
+					mood : "",
+
+					affection : 0,
+					distanceWalked : 0,
+
+					borrowedPower : [],
+					fruitPower : []
+				}
+			];
+
+			var monsterTeam = [
+				{
+					species : "TEST",
+					nickname : "ICY",
+					sprite : "",
+
+					level : 1,
+					hearts : 3,
+					maxHealth: 20,
+					currentHealth : 10,
+					guts : 0,
+					wits : 0,
+					skill : 0,
+					speed : 0,
+					geswoleLimit : 0,
+					moveList : [],
+					knownMoves : [],
+					moveCooldown : 0,
+					currentRelic: {},
+
+					miniGuts : 0,
+					miniWits : 0,
+					miniSkill : 0,
+
+					affection : 0,
+					distanceWalked : 0,
+
+					borrowedPower : [],
+					fruitPower : []
+				}
+			];
+
+			var monsterStorage = [];
+
+
+			function ItemObject(name, quantity, sprite, description, type, effectArray, isFindable, isCraftable, recipieArray) {
+				this.name = name;
+				this.quantity = quantity;
+				this.sprite = sprite;
+				this.description = description;
+				this.type = type;
+				this.effectArray = effectArray;
+				this.isFindable = isFindable;
+				this.isCraftable = isCraftable;
+				this.recipieArray = recipieArray;
+			}
+
+			var inventory = [
+				new ItemObject("REPLICATE", "?", herb1, "HOLD BUTTON FOR DUPE.", "rigging",[testAdd]),
+				new ItemObject("    EXIT       EXIT       EXIT       EXIT   ","X", herb1,"HOLD BUTTON TO EXIT MENU.", "dev",[])			
+			];
+			var invPos = 0;
+			var invTarget = 0;
+			var invTextRaw = "";
+			var invArrayFocus = [];
+			var invNumberToUse = 1;
+
+			var itemTable = [
+				new ItemObject(
+					"PLAIN HERB", 
+					0, 
+					herb1, 
+					"HAS MEDICAL USES.",
+					"resource",
+					[],
+					true,
+					false					
+				),
+				new ItemObject(
+					"LOG BUNDLE", 
+					0, 
+					wood1, 
+					"GOOD FOR FUEL.",
+					"resource",
+					[],
+					true,
+					false					
+				),
+				new ItemObject(
+					"REVERB ROB", 
+					0, 
+					rod1, 
+					"WHEN EQUIPED, ALLOWS INSTANT REACT.",
+					"relic",
+					[],
+					false,
+					true,
+					[0,3,1,3]
+				),
+				new ItemObject(
+					"RICKETY SHIELD", 
+					0, 
+					shield1, 
+					"USE ONE CHARGE TO HALF ENEMY ATTACK DAMAGE.",
+					"relic",
+					[],
+					false,
+					true,
+					[1,3]
+				),
+				new ItemObject(
+					"HEALING TOME", 
+					0, 
+					tome1, 
+					"USE TO DO A DECENT HEAL ON THE CHOSEN MONSTER.",
+					"relic",
+					[],
+					false,
+					true,
+					[0,3]
+				),
+				new ItemObject(
+					"    EXIT       EXIT       EXIT       EXIT   ",
+					"X", 
+					herb1,
+					"HOLD BUTTON TO EXIT MENU.", 
+					"dev",
+					[],
+					false,
+					true,
+					[-1,1]
+				),
+			];
+
 
 			var subFunctionInitialized = false;
-			var stepReward = 0;
+			var coinReward = 0;
+
 			var strobeRate = Infinity;
 			var strobeFirstClick = 0;
 			var strobeDeltaClick = true;
@@ -306,32 +464,21 @@
 			var blackBackground = document.getElementById("blackScreen");
 			var textOnWhite = document.getElementById("fontOnWhite");
 			var textOnBlack = document.getElementById("fontOnBlack");			
-			var stepsCurrent = 500;
-			var stepsTotal = 0;
-			var stepsToAdd = 0;
-			var stepsAdding = 0;
-			var stepsAddingUpdate = 100;
-			var stepsAddingIncrement = 1;
-			var stepsAddingTimeBefore = 0;
-			var stepsAddingTimeNow = 0;
-			var stepsClickPower = 1;
-			var stepsPassiveClick = 0;
-			var stepsPassivePower = 1;
-			var stepsPassiveActive = false;
-			var stepsPassiveCounterBefore = performance.now();
-			var stepsPassiveCounterNow = 0;
-			var stepsStaminaCurrent = 100;
-			var stepsStaminaMax = 100;
-			var stepsRecoverRate = 500;
-			var stepsRecoverNow = performance.now();
-			var stepsRecoverBefore = 0;
-			var stepsPipPosition = "";
-			var stepsTickNumber = 10 - 1;
-			var stepsTickWorth = 0;
-			var stepsTickLayout = "";
-			
+			var coinsCurrent = 0;
+			var coinsTotal = 0;
+			var coinsToSubtract = 0;
+			var coinsSubtracting = 0;
+			var coinsSubtractingUpdate = 100;
+			var coinsSubtractingIncrement = 1;
+			var coinsSubtractingTimeBefore = 0;
+			var coinsSubtratcingTimeNow = 0;
+			var coinsClickPower = 1;
+			var coinsPassiveClick = 0;
+			var coinsPassivePower = 1;
+			var coinsPassiveActive = false;
+			var coinsPassiveCounterBefore = performance.now();
+			var coinsPassiveCounterNow = 0;
 
-			var auxTest = document.getElementById("stepsTest");
 
 			var textAux = "";
 			var textQueue = [];
@@ -350,6 +497,7 @@
 			var textStartCrawl = 1500;
 			var textNextCrawl = 100;
 			var textScrollSpeed = 4;
+			var textSyncMaxCrawl = 0;
 			var textWidth = 16;
 			var textHeight = 24;
 			var textParser = [
@@ -426,6 +574,7 @@
 			var isButtonClick = false;
 			var isButtonHeld = false;
 			var isButtonHover = false;
+			var isButtonFlick = false;
 			var buttonBlocked = false;
 			var buttonHoldPending = false;
 			var buttonIgnoreClick = false;
@@ -442,10 +591,10 @@
 			theButtonScreen.addEventListener("mouseleave", mouseLeaveHandler, false);
 			theButtonScreen.addEventListener("mouseup", mouseUpHandler, false);
 			document.addEventListener("mouseup", mouseUpHandler, false);
-			theButtonScreen.addEventListener("mousedown", mouseDownHandler, false)
+			theButtonScreen.addEventListener("mousedown", mouseDownHandler, false);
 
 
-/* Universal screen functions */
+		/* Universal screen functions */
 
 			function gameLoop() {
 
@@ -455,7 +604,10 @@
 			/* Main screen draws */
 
 				ctxMain.clearRect(0,0, mainScreen.width, mainScreen.height);
-				drawBackground(ctxMain); 				
+				drawBackground(ctxMain); 			
+
+				ctxAux.clearRect(0, 0, auxScreen.width, auxScreen.height);
+				drawBackground(ctxAux);	
 
 				if (gameState == "idle") {
 					drawIdle();
@@ -463,25 +615,30 @@
 				else if (gameState == "menu") {
 					drawMenu();
 				}
-				else if (gameState == "subFunction") {
+				/* else if (gameState == "subFunction" || gameState == "inventory") {
+					menuItems[menuPointer].referEnter();
+				} */
+				else {
 					menuItems[menuPointer].referEnter();
 				}
 
 			/* Aux screen draws */
 
-				ctxAux.clearRect(0, 0, auxScreen.width, auxScreen.height);
-				drawBackground(ctxAux);				
-
 				if (gameState == "idle") {
-					updateSteps();
-					drawSteps();
+					updateCoins();
+					drawCoins();
 				}
 				else if (gameState == "menu") {
 					drawAux();
 				}
 				else if (gameState == "subFunction") {
 					drawAux();
-				}	
+				}
+				else if (gameState == "inventory"){
+					drawAux();
+				}							
+
+			/* Post-process updates and draws */
 
 				drawGrid(ctxAux);
 
@@ -493,98 +650,90 @@
 
 				buttonUpdate(); 
 				drawButton();
-				
-				requestAnimationFrame(gameLoop);
+
+			/* Looping function */
+
+				requestAnimationFrame(gameLoop);	
 			}
 
 
 
 			function animationParser() {	
-			        if (animationQueue.length > 0){
-				animationIsRecord = false;
-			        }		   
-			        for (a = 0; a < animationQueue.length; a++) {
-				for (p = 0; p < animationQueue[a].functionArray.length; p++) {
-				        for (f = 0; f < animationQueue[a].functionArray.length; f++) {
-					if (animationQueue[a].functionArray[f].queuePos == p) {
-					        if (animationQueue[a].functionArray[f].isDone == false && 
-					        performance.now() - animationQueue[a].functionArray[f].timeLast >= 
-					        animationQueue[a].functionArray[f].delay) {
-						animationQueue[a].functionArray[f].delay = 0;
-						if (eval(animationQueue[a].functionArray[f].doWhen[0]) == true) {
-						     animationQueue[a].functionArray[f].function(
-							animationQueue[a].ctx, 
-							animationQueue[a].screen, 
-							animationQueue[a].sprite, 
-							animationQueue[a].coordX, 
-							animationQueue[a].coordY, 
-							animationQueue[a].functionData
-						    );
+				if (animationQueue.length > 0){
+					animationIsRecord = false;
+				}		   
+				for (a = 0; a < animationQueue.length; a++) {
+						for (p = 0; p < animationQueue[a].functionArray.length; p++) {
+							for (f = 0; f < animationQueue[a].functionArray.length; f++) {
+								if (animationQueue[a].functionArray[f].queuePos == p) {
+									if (animationQueue[a].functionArray[f].isDone == false && performance.now() - animationQueue[a].functionArray[f].timeLast >= animationQueue[a].functionArray[f].delay) {
+										animationQueue[a].functionArray[f].delay = 0;
+										if (eval(animationQueue[a].functionArray[f].doWhen[0]) == true) {
+											animationQueue[a].functionArray[f].function(
+												animationQueue[a].ctx, 
+												animationQueue[a].screen, 
+												animationQueue[a].sprite, 
+												animationQueue[a].coordX, 
+												animationQueue[a].coordY, 
+												animationQueue[a].functionData
+											);
 
-						        animationQueue[a].functionArray[f].timeLast = performance.now();
-						}
-  				   		else if (performance.now() - animationQueue[a].functionArray[f].timeLast >= 
-						eval(animationQueue[a].functionArray[f].doEvery[0]) && 
-						eval(animationQueue[a].functionArray[f].doEvery[0]) > -1) {
-						     animationQueue[a].functionArray[f].function(
-							animationQueue[a].ctx, 
-							animationQueue[a].screen, 
-							animationQueue[a].sprite, 
-							animationQueue[a].coordX, 
-							animationQueue[a].coordY, 
-							animationQueue[a].functionData
-						    );
+							  			  animationQueue[a].functionArray[f].timeLast = performance.now();
+										}
+  								   		else if (performance.now() - animationQueue[a].functionArray[f].timeLast >= eval(animationQueue[a].functionArray[f].doEvery[0]) && eval(animationQueue[a].functionArray[f].doEvery[0]) > -1) {
+											animationQueue[a].functionArray[f].function(
+												animationQueue[a].ctx, 
+												animationQueue[a].screen, 
+												animationQueue[a].sprite, 
+												animationQueue[a].coordX, 
+												animationQueue[a].coordY, 
+												animationQueue[a].functionData
+									 	   );
 
-					                      animationQueue[a].functionArray[f].doEvery[1] -= 
-						        animationQueue[a].functionArray[f].doEvery[0];
+											animationQueue[a].functionArray[f].doEvery[1] -= animationQueue[a].functionArray[f].doEvery[0];
 
-						        if (animationQueue[a].functionArray[f].doEvery[1] < 0) {
-							animationQueue[a].functionArray[f].doEvery[0] = -1;
-						        }
+											if (animationQueue[a].functionArray[f].doEvery[1] < 0) {
+												animationQueue[a].functionArray[f].doEvery[0] = -1;
+											}
 
-						        animationQueue[a].functionArray[f].timeLast = performance.now();
-						}
-						else if (animationQueue[a].functionArray[f].doChain.length > 0 && performance.now() - 									animationQueue[a].functionArray[f].timeLast >= 
-						eval(animationQueue[a].functionArray[f].doChain[0])) {
-						     animationQueue[a].functionArray[f].function(
-							animationQueue[a].ctx, 
-							animationQueue[a].screen, 
-							animationQueue[a].sprite, 
-							animationQueue[a].coordX, 
-							animationQueue[a].coordY, 
-							animationQueue[a].functionData
-						    );
+											animationQueue[a].functionArray[f].timeLast = performance.now();
+										}
+										else if (animationQueue[a].functionArray[f].doChain.length > 0 && performance.now() - animationQueue[a].functionArray[f].timeLast >= eval(animationQueue[a].functionArray[f].doChain[0])) {
+										animationQueue[a].functionArray[f].function(
+											animationQueue[a].ctx, 
+											animationQueue[a].screen, 
+											animationQueue[a].sprite, 
+											animationQueue[a].coordX, 
+											animationQueue[a].coordY, 
+											animationQueue[a].functionData
+										);
 
- 						        animationQueue[a].functionArray[f].doChain.shift();
+ 										animationQueue[a].functionArray[f].doChain.shift();
+										animationQueue[a].functionArray[f].timeLast = performance.now();
+										}
+										else if (performance.now() - animationQueue[a].functionArray[f].timeLast >=	eval(animationQueue[a].functionArray[f].doOnce) && eval(animationQueue[a].functionArray[f].doOnce) != -1){
+										animationQueue[a].functionArray[f].function(
+											animationQueue[a].ctx, 
+											animationQueue[a].screen, 
+											animationQueue[a].sprite, 
+											animationQueue[a].coordX, 
+											animationQueue[a].coordY, 
+											animationQueue[a].functionData
+										);
 
-						        animationQueue[a].functionArray[f].timeLast = performance.now();
-						}
-						else if (performance.now() - animationQueue[a].functionArray[f].timeLast >=
-						eval(animationQueue[a].functionArray[f].doOnce) && 
-						eval(animationQueue[a].functionArray[f].doOnce) != -1){
-						     animationQueue[a].functionArray[f].function(
-							animationQueue[a].ctx, 
-							animationQueue[a].screen, 
-							animationQueue[a].sprite, 
-							animationQueue[a].coordX, 
-							animationQueue[a].coordY, 
-							animationQueue[a].functionData
-						    );
-
-						        animationQueue[a].functionArray[f].doOnce = -1;
-						        animationQueue[a].functionArray[f].timeLast = performance.now();
-						}
-						else {
-							if(performance.now() -  animationQueue[a].functionArray[f].timeLast >= 
-							eval(animationQueue[a].functionArray[f].doWhen[1])) {
-								animationQueue[a].functionArray[f].isDone = true;
+										animationQueue[a].functionArray[f].doOnce = -1;
+										animationQueue[a].functionArray[f].timeLast = performance.now();
+										}
+										else {
+											if(performance.now() -  animationQueue[a].functionArray[f].timeLast >= eval(animationQueue[a].functionArray[f].doWhen[1])) {
+												animationQueue[a].functionArray[f].isDone = true;
+											}
+										}
+									}
+								}
 							}
 						}
-					         }
-					 }
-				        }
 				}
-			        }
 			}
 
 			function drawBackground (context) {
@@ -617,6 +766,7 @@
 				var prevSpaceIndex = 0;
 				var breakTracker = [];
 				var maxLength =  auxScreen.width;
+				
 
 
 				for (q = 0; q < textQueue.length; q++) {
@@ -649,8 +799,7 @@
 
 
 				for (tldr = 0; tldr < transcribe.length; tldr++) {
-					if (transcribe[tldr] == " " || transcribe[tldr] == "." || transcribe[tldr] == "," || transcribe[tldr] == ";"
-					|| transcribe[tldr] == ":" || transcribe[tldr] == "'") {
+					if (transcribe[tldr] == " " || transcribe[tldr] == "." || transcribe[tldr] == "," || transcribe[tldr] == ";"|| transcribe[tldr] == ":" || transcribe[tldr] == "'") {
 						characterWidth = 8;
 						
 						if ((transcribe[tldr] == " " || transcribe[tldr + 1]) && screen == auxScreen) {  
@@ -704,9 +853,17 @@
 					textQueue[q].textMaxCrawl = (breakTracker.length + 1) * textHeight + addY - 
 					textQueue[q].textVisableCrawl;
 				}
-				else if (screen == mainScreen) {
+				else if (screen == mainScreen) {					
 					textQueue[q].textMaxCrawl = lineLength + addX - textQueue[q].textVisableCrawl;
-				}
+
+					/* if (textSyncMaxCrawl < textQueue[q].textMaxCrawl) {
+						textSyncMaxCrawl = textQueue[q].textMaxCrawl;
+					}
+					else if (textSyncMaxCrawl > textQueue[q].textMaxCrawl) {
+						textQueue[q].textMaxCrawl = textSyncMaxCrawl;
+					} */
+				}				
+
 
 				textTimeNow = performance.now();
 				textTimeCount = textTimeNow - textQueue[q].textTimeLast;
@@ -748,7 +905,7 @@
 
 							if (i >= breakTracker[trackerCount]) {
 								pointerX = addX;
-								pointerY = textHeight * (trackerCount + 1) + addY - 													textQueue[q].textCrawlPosition;
+								pointerY = textHeight * (trackerCount + 1) + addY - textQueue[q].textCrawlPosition;
 
 								trackerCount += 1;
 							}
@@ -756,12 +913,14 @@
 								if (textParser[c].character == transcribe[i]) {
 									context.drawImage(
 										textType, 
-										textParser[c].sheetRow * textWidth, 														textParser[c].sheetColumn * textHeight, 
-										textWidth + textParser[c].widthModify, 													textHeight, 
+										textParser[c].sheetRow * textWidth, 
+										textParser[c].sheetColumn * textHeight, 
+										textWidth + textParser[c].widthModify,
+										textHeight + pixelSize, 
 										pointerX, 
-										pointerY, 
+										pointerY - pixelSize, 
 										textWidth + textParser[c].widthModify, 
-										textHeight
+										textHeight + pixelSize
 									);
 								
 									pointerX += textWidth + textParser[c].widthModify;
@@ -773,12 +932,14 @@
 								if (textParser[c].character == transcribe[i]) {
 									context.drawImage(
 										textType, 
-										textParser[c].sheetRow * textWidth, 														textParser[c].sheetColumn * textHeight, 
-										textWidth + textParser[c].widthModify, 													textHeight, 
+										textParser[c].sheetRow * textWidth,
+										textParser[c].sheetColumn * textHeight, 
+										textWidth + textParser[c].widthModify,
+										textHeight + pixelSize, 
 										pointerX, 
-										pointerY, 
+										pointerY - pixelSize, 
 										textWidth + textParser[c].widthModify, 
-										textHeight
+										textHeight + pixelSize
 									);
 								
 									pointerX += textWidth + textParser[c].widthModify;
@@ -845,17 +1006,29 @@
 				}
 			}
 
-			function updateText() {
-				if ((buttonJustClicked == true || isButtonHeld == true) && buttonBlocked == false && isButtonHover == true && 						textIgnoreReset == false) {
+			function updateText() {	
+				if ((((buttonJustClicked == true || isButtonHeld == true) && isButtonHover == true) || isButtonFlick == true) && buttonBlocked == false && textIgnoreReset == false) {
 					textQueue = [];
 				}
 			}
 			
-/* Monster functions */
+		/* Monster functions */
 
-			function personalityGenerator(monsterStats, baseValues) {
+			function chooseMonster() {
+				/* ctxMain.drawImage(
+					monsterParty[monsterPointer].sprite, 
+					0, 																	0, 
+					0, 																	0, 
+					0, 
+					0, 
+					monsterParty[monsterPointer].sprite.width, 
+					monsterParty[monsterPointer].sprite.height
+				); */
+			}
+
+			function personalityGenerator(monsterStats, baseValues, mutator) {
 				for (p = 0; p < baseValues.length; p++) {
-					monsterStats[p] = baseValues[p] / floor(Math.random() * 10);
+					monsterStats[p] = baseValues[p] + floor(Math.random() * 10);
 				}
 			}
 
@@ -866,15 +1039,164 @@
 			}
 
 
+		/* Inventory and Item functions */	
 
-/* Menu functions */
+			function chooseNumToUse() {
+
+			}
+
+			function drawCrafting() {
+				drawItems(true);
+			}	
+
+			
+			function drawItems(isCrafting) {
+				if (isCrafting == undefined) {
+					invArrayFocus = inventory;
+				}
+				else if (isCrafting == true && invArrayFocus.length == 0) {
+					for (crf = 0; crf < itemTable.length; crf++) {
+						if (itemTable[crf].isCraftable == true) {
+							invArrayFocus.push(itemTable[crf]);
+						}
+					}					
+				}
+
+				ctxMain.drawImage(invArrayFocus[invPos].sprite, 0, -pixelSize * 2);
+
+				drawText(
+					invArrayFocus[invPos].name, 
+					textOnBlack, 
+					ctxMain, 
+					mainScreen, 
+					0, 
+					mainScreen.height - (2 * textHeight) - pixelSize, 
+					6
+				);
+
+				invTextRaw = "";
+
+				if (invArrayFocus[invPos].quantity <= 9) {
+					invTextRaw = "      *" + invArrayFocus[invPos].quantity;
+				}
+				else if (invArrayFocus[invPos].quantity > 9) {
+					invTextRaw = "     *" + invArrayFocus[invPos].quantity;
+				}
+				else if (invPos > invArrayFocus.length) {
+					invTextRaw = "";
+				}
+
+				drawText(
+					invTextRaw, 
+					textOnWhite, 
+					ctxMain, 
+					mainScreen, 
+					0, 
+					mainScreen.height - textHeight, 
+					7
+				);
+
+				if (gameState == "textMenu") {
+					textMenuDisplay(
+						"USE", 
+						isCrafting != true, 
+						textMenuUse, 
+
+						"CRAFT",
+						isCrafting == true,
+						textMenuCraft,
+
+						"EXIT", 
+						true, 
+						textMenuExit
+					);					
+				}
+				else {
+					textAux = invArrayFocus[invPos].description;
+				}
+
+			}
+
+			function findInInventory(itemIndex) {
+				for (k = 0; k < inventory.length; k++) {
+					if (inventory[k].name == itemTable[itemIndex].name) {
+						return(k);
+					}
+				} 
+		
+				return(k);
+			}
+
+			function findInLootTable() {
+				for (m = 0; m < inventory.length; m++) {
+					if (inventory[invPos].name == itemTable[m].name) {
+						return(m);
+					}
+				} 
+		
+				return(m);
+			}
+
+			function addToInventory(modifier, tableIndex) {
+				invTarget = findInInventory(tableIndex);
+
+				if (invTarget < inventory.length) {
+					inventory[invTarget].quantity += modifier;
+					
+				}
+				else if (invTarget == inventory.length) {
+					inventory.splice(-1, 0, itemTable[tableIndex]);
+
+					inventory[inventory.length - 2].quantity = modifier;
+				}
+
+			}
+
+			function takeFromInventory(modifier, tableIndex) {
+				if (arguments[1] == undefined) {
+					invTarget = invPos;
+				}
+				else {
+					invTarget = findInInventory(tableIndex);
+				}
+
+				if (modifier >= inventory[invPos].quantity) {
+					inventory.splice(invTarget, 1);
+				}
+				else {
+					inventory[invTarget].quantity -= modifier;
+				}			
+			}
+
+			function useItem(num, tableIndex) {
+				if (arguments[1] == undefined) {
+					invTarget = invPos;
+				}
+				else {
+					invTarget = findInInventory(tableIndex);
+				}
+	
+				for (q = num; q > 0; q--) {			
+					for (u = 0; u < inventory[invTarget].effectArray.length; u++) {
+						inventory[invTarget].effectArray[u]();
+					}
+				}
+			}
+
+			function testAdd() {
+				addToInventory(1,1);
+			}
+
+
+		/* Menu functions */
+
 
 			function drawMenu() {
 				ctxMain.drawImage(menuItems[menuPointer].sprite, 0, 0);
 				textAux = menuItems[menuPointer].description;
 				drawText(menuItems[menuPointer].title, textOnWhite, ctxMain, mainScreen, 0, mainScreen.height - textHeight, 1);
 
-				menuAnchor = menuIndexStack[menuIndexStack.length - 1]
+				menuAnchor = menuIndexStack[menuIndexStack.length - 1];
 				menuMiddle = mainScreen.height - textHeight - pixelSize - squareIcon1.height;
 
 				for (m = menuAnchor ; m != 0 && menuPips < 7; m = menuItems[m].referNext) {
@@ -932,10 +1254,91 @@
 
 					menuIndexStack.pop();
 				}
-				else {
+				else {					
 					menuIndexStack.pop();
-					menuPointer = menuIndexStack[menuIndexStack.length - 1];
+					menuPointer = menuIndexStack[menuIndexStack.length - 1];	
 				}
+			}
+
+			function textMenuBlankSkip() {
+				for (lbc = listPointer; (((lbc + 1) * 3) < listArray.length); lbc++) {
+					if (listArray[((lbc + 1) * 3) + 1] == true || (lbc == 0 && listArray[(lbc * 3) + 1] == true && listStart == true)) {
+						listPointer = lbc;
+
+						break;
+					}
+				}
+
+				if (((listPointer + 1) * 3) < listArray.length && listArray[((listPointer + 1) * 3) + 1] == true) {
+					listPointer++;
+				}
+			}
+
+			function textMenuCraft() {
+				textMenuExit();
+			}
+
+			function textMenuDisplay() {
+				listDisplayCount = 0;
+				listArray = arguments;	
+
+				if (listStart == true) {
+					textMenuBlankSkip();	
+					
+					listStart = false;		
+				}
+
+				for (tm = 0; tm <= listArray.length; tm += 3) {
+					if (listArray[1 + tm] == true) {
+						if (listPointer == (tm / 3)) {
+							listTextColor = textOnBlack;
+						}
+						else {
+							listTextColor = textOnWhite;
+						}
+
+						drawText(
+							listArray[tm], 
+							listTextColor, 
+							ctxAux, 
+							auxScreen, 
+							0, 
+							textHeight * listDisplayCount, 
+							7
+						);
+						
+						listDisplayCount++;
+					}
+				}
+
+				if (listDoRun == true) {
+					listArray[((listPointer + 1) * 3) - 1]();
+				}
+			}
+
+			function textMenuExit() {
+				gameState = gamePrev;
+				listDoRun = false;
+				listPointer = 0;
+			}
+
+			function textMenuUse() {
+				if (invArrayFocus[invPos].type == "resource" || invArrayFocus[invPos].type == "relic") {
+					chooseNumToUse();
+					chooseMonster();
+				}
+				else if (invArrayFocus[invPos].type == "rig") {
+
+				}
+				else if (invArrayFocus[invPos].type == "seed") {
+
+				}
+
+				useItem(invNumberToUse);
+				takeFromInventory(invNumberToUse);
+				invNumberToUse = 1;
+
+				textMenuExit()
 			}
 
 			function updateMenu() {
@@ -951,17 +1354,25 @@
 						animationIsRecord = true;
 					}
 					else if (gameState == "menu") {
-						if (typeof(menuItems[menuPointer].referEnter) == "number") { 
+						if (typeof(menuItems[menuPointer].referEnter) == "number") {
 							menuPointer = menuItems[menuPointer].referEnter;
 
 							menuIndexStack.push(menuPointer);
 						}
 						else if (typeof(menuItems[menuPointer].referEnter) == "function") {
-							if (menuPointer != 0) {
-								gameState = "subFunction";
+							if(menuItems[menuPointer].referEnter == drawItems || 
+							menuItems[menuPointer].referEnter == drawCrafting) {
+								gameState = "inventory";
+								
+								invPos = 0;
 							}
-
-							menuItems[menuPointer].referEnter(); 
+							else{						
+								if (menuPointer != 0) {
+									gameState = "subFunction";
+								}
+							}
+								
+							menuItems[menuPointer].referEnter(); 							
 						}
 					}
 					else if (gameState == "subFunction") {
@@ -971,25 +1382,70 @@
 						animationQueue = [];
 						animationIsRecord = true;
 					}
+					else if (gameState == "inventory") {
+						if (invPos == (invArrayFocus.length - 1)) {
+							invArrayFocus = [];
+							gameState = "menu";						
+						}
+						else {
+							gamePrev = gameState;
+							gameState = "textMenu";
+				
+							listStart = true;
+						}
+					}		
+					else if (gameState == "textMenu") {
+						listDoRun = true;
+					}			
 
 					buttonIgnoreClick = true;
 					buttonHoldPending = true;
 				}
+				else if (buttonJustClicked == true) {
+					if (gameState == "menu") {
+						if (menuItems[menuPointer].referNext == 0 || menuPointer == 0) {
+							menuItems[0].referNext = menuIndexStack[menuIndexStack.length - 1];
+						}
 
-				else if (buttonJustClicked == true && gameState == "menu") {
-					if (menuItems[menuPointer].referNext == 0 || menuPointer == 0) {
-						menuItems[0].referNext = menuIndexStack[menuIndexStack.length - 1];
-					}
-
-					menuPointer = menuItems[menuPointer].referNext;
-
-					if (menuItems[menuPointer].isDisplayed == false) {
 						menuPointer = menuItems[menuPointer].referNext;
+
+						if (menuItems[menuPointer].isDisplayed == false) {
+							menuPointer = menuItems[menuPointer].referNext;
+						}	
+					}
+					else if (gameState == "inventory") {
+						if (invPos < invArrayFocus.length - 1) {
+							invPos++;
+						}
+					}
+					else if (gameState == "textMenu") {
+						textMenuBlankSkip()
+					}
+				}
+				else if (isButtonFlick == true) {
+					if (gameState == "inventory") {
+						if (invPos > 0) {
+							invPos--;
+						}
+					}
+					else if (gameState == "textMenu") {
+						for (lbc = listPointer; (lbc > 0); lbc--) {
+							if (listArray[((lbc - 1) * 3) + 1] == true) {
+								listPointer = lbc;
+
+								break;
+							}
+						}
+
+						if (listPointer > 0 && listArray[((lbc - 1) * 3) + 1] == true) {
+							listPointer--;
+						}
 					}
 				}
 			}
+			
 
-/* Minigame functions */
+		/* Minigame functions */
 			
 			function strobeDance() {
 
@@ -1010,48 +1466,48 @@
 					animationQueue.push(
 						new AnimationObject(
 							image2,
-							0,      /* X coord */
-							0,      /* Y coord  */
+							0,	  /* X coord */
+							0,	  /* Y coord  */
 							ctxMain,  /*  context/cxt  */
 							mainScreen,  /* screen */
 							buttonJustClicked,   /* Input */
 
 							invertDraw,  /* function  */
-							0,           /* delay  */
-							2,      /* queue pos  */
-							[false, Infinity],    /* do When  */
-							[0, Infinity],         /* do Every */
-							[],       /*  do Chain */
-							-1,     /* do Once  */
+							0,		   /* delay  */
+							2,	  /* queue pos  */
+							[false, Infinity],	/* do When  */
+							[0, Infinity],		 /* do Every */
+							[],	   /*  do Chain */
+							-1,	 /* do Once  */
 
 							invertColor,
-							0,      /* delay  */
-							1,      /* queue pos  */
-							[false, Infinity],    /* do When  */
+							0,	  /* delay  */
+							1,	  /* queue pos  */
+							[false, Infinity],	/* do When  */
 							["strobeRate", Infinity],   /* do Every */
-							[],     /*  do Chain */
-							-1,    /* do Once  */
+							[],	 /*  do Chain */
+							-1,	/* do Once  */
 
 							strobeDance,  /* function  */
-							0,           /* delay  */
-							0,      /* queue pos  */
-							[false, Infinity],    /* do When  */
-							["strobeRate", Infinity],         /* do Every */
-							[],       /*  do Chain */
-							-1,     /* do Once  */
+							0,		   /* delay  */
+							0,	  /* queue pos  */
+							[false, Infinity],	/* do When  */
+							["strobeRate", Infinity],		 /* do Every */
+							[],	   /*  do Chain */
+							-1,	 /* do Once  */
 
-							regDraw,    /* function  */
-							0,           /* delay  */
-							0,      /* queue pos  */
-							[false, Infinity],    /* do When  */
-							[0, Infinity],         /* do Every */
-							[],       /*  do Chain */
-							-1     /* do Once  */
+							regDraw,	/* function  */
+							0,		   /* delay  */
+							0,	  /* queue pos  */
+							[false, Infinity],	/* do When  */
+							[0, Infinity],		 /* do Every */
+							[],	   /*  do Chain */
+							-1	 /* do Once  */
 
 
 
 						)
-					)
+					);
 				}
 
 				if (strobeFirstClick == true) {
@@ -1074,7 +1530,7 @@
 			}
 
 
-/* Main screen functions */
+		/* Main screen functions */
 
 
 			function drawIdle() {
@@ -1082,47 +1538,47 @@
 					animationQueue.push(
 						new AnimationObject(
 							currentIdle,
-							0,      /* X coord */
-							0,      /* Y coord  */
+							0,	  /* X coord */
+							0,	  /* Y coord  */
 							ctxMain,  /*  context/cxt  */
 							mainScreen,  /* screen */
 							buttonJustClicked,   /* Input */
 
 							updateIdle,   /* function  */
-							0,      /* delay  */
-							1,      /* queue pos  */
-							[false, Infinity],    /* do When  */
+							0,	  /* delay  */
+							1,	  /* queue pos  */
+							[false, Infinity],	/* do When  */
 							[1000, Infinity],   /* do Every */
-							[],     /*  do Chain */
-							-1,    /* do Once  */
+							[],	 /*  do Chain */
+							-1,	/* do Once  */
 
-							flipHozDraw,    /* function  */
-							0,           /* delay  */
-							2,      /* queue pos  */
-							["flipImage == true && idleState != \"walk\"", Infinity],    /* do When  */
-							[-1, Infinity],        /* do Every */
-							[],       /*  do Chain */
-							-1,      /* do Once  */
+							flipHozDraw,	/* function  */
+							0,		   /* delay  */
+							2,	  /* queue pos  */
+							["flipImage == true && idleState != \"walk\"", Infinity],	/* do When  */
+							[-1, Infinity],		/* do Every */
+							[],	   /*  do Chain */
+							-1,	  /* do Once  */
 													
-							updateWalk,    /* function  */
-							0,           /* delay  */
-							1,      /* queue pos  */
+							updateWalk,	/* function  */
+							0,		   /* delay  */
+							1,	  /* queue pos  */
 							["buttonJustClicked", Infinity],
-							[1000, Infinity],         /* do Every */
-							[],       /*  do Chain */
-							-1,      /* do Once  */
+							[1000, Infinity],		 /* do Every */
+							[],	   /*  do Chain */
+							-1,	  /* do Once  */
 
-							regDraw,    /* function  */
-							0,           /* delay  */
-							2,      /* queue pos  */
-							[false, Infinity],    /* do When  */
-							[0, Infinity],         /* do Every */
-							[],       /*  do Chain */
-							-1     /* do Once  */							
+							regDraw,	/* function  */
+							0,		   /* delay  */
+							2,	  /* queue pos  */
+							[false, Infinity],	/* do When  */
+							[0, Infinity],		 /* do Every */
+							[],	   /*  do Chain */
+							-1	 /* do Once  */							
 
 
 						)
-					)							
+					);							
 				}
 			}
 
@@ -1143,14 +1599,14 @@
 			} 
 
 			function updateWalk() {
-				if (idleState == "idle" && buttonJustClicked == true && stepsAdding <= 0) { 
+				if (idleState == "idle" && buttonJustClicked == true && coinsSubtracting <= 0) { 
 
 					idleState = "walk";
 					animationQueue[a].sprite = walk1;
 					flipImage = false;				
 				}
 
-				if (idleState == "walk" && timeUnpressed <= timeForDrop && stepsAdding <= 0 && gameState == "idle") {
+				if (idleState == "walk" && timeUnpressed <= timeForDrop && coinsSubtracting <= 0 && gameState == "idle") {
 					if (animationQueue[a].sprite == walk1) {
 						animationQueue[a].sprite = walk2;
 					}
@@ -1161,13 +1617,11 @@
 				else if (idleState == "walk") {
 					idleState = "idle";
 					animationQueue[a].sprite = image2;
-
-					/* timeStartClick = -1; */
 				}				
 			} 
 
 
-/* Aux screen functions */
+		/* Aux screen functions */
 
 			function drawAux() {
 				ctxAux.clearRect(0, 0, auxScreen.width, auxScreen.height);
@@ -1178,94 +1632,62 @@
 
 				/* "THE QUICK, BROWN FOX JUMPED OVER THE LAZY DOG." */
 			}
-		
-			function modifySteps() {
+
+			function drawCoins() {
+				drawText("COINS     ", textOnBlack, ctxAux, auxScreen, 0, 0, 3);
+				drawText(coinsCurrent.toString(), textOnWhite, ctxAux, auxScreen, 0, textHeight + pixelSize, 4);
+
+				if (coinsSubtracting > 0) {
+					drawText(coinsSubtracting.toString(), textOnWhite, ctxAux, auxScreen, 0, textHeight * 2 + pixelSize, 5);
+				}
 
 			}
 
 
-			function drawSteps() {
-				drawText("STEPS     ", textOnBlack, ctxAux, auxScreen, 0, 0, 3);
-				drawText(stepsCurrent.toString(), textOnWhite, ctxAux, auxScreen, 0, textHeight + pixelSize, 4);
-
-				if (stepsAdding > 0) {
-					drawText(stepsAdding.toString(), textOnWhite, ctxAux, auxScreen, 0, textHeight * 2 + pixelSize, 5);
-				}
-				else {
-					drawText("F______~~E", textOnWhite, ctxAux, auxScreen, pixelSize, pixelSize * 14, 5);
-					drawText("~;~;~;~;~;~;~;~;~;~;", textOnWhite, ctxAux, auxScreen, pixelSize * 4, pixelSize * 15, 5);
-					drawText(stepsPipPosition, textOnWhite, ctxAux, auxScreen, pixelSize * 4, pixelSize * 14, 5);
-				}
-			}
-
-
-			function updateSteps() {
-				if (stepsCurrent == 0 && stepsAdding == 0) {
-					stepsToAdd = 20;
-					stepsAdding = stepsToAdd;
-					stepsAddingTimeBefore = performance.now();
+			function updateCoins() {
+				if (coinsSubtracting >= 0) {
+					coinsSubtracting = coinsToSubtract;
+					coinsSubtractingTimeBefore = performance.now();
 					
-					if (stepsToAdd >= 100) {
-						stepsAddingIncrement = 5
+					if (coinsToSubtract >= 100) {
+						coinsSubtractingIncrement = 5;
 					}
-					if (stepsToAdd >= 500) {
-						stepsAddingIncrement = 25;
+					if (coinsToSubtract >= 500) {
+						coinsSubtractingIncrement = 25;
 					}
 					else {
-						stepsAddingIncrement = 1;
+						coinsSubtractingIncrement = 1;
 					}
 				}
 
-				stepsRecoverNow = performance.now();
-
-				if (stepsRecoverNow - stepsRecoverBefore >= stepsRecoverRate && stepsStaminaCurrent < stepsStaminaMax) {		
-					stepsRecoverBefore = stepsRecoverNow;
-					
-					stepsStaminaCurrent++;
+				if (buttonJustClicked == true && coinsSubtracting <= 0) {
+					coinsCurrent += coinsClickPower;
 				}
 
-				stepsTickWorth = Math.round(stepsStaminaMax / 19);
+				coinsPassiveCounterNow = performance.now();
 
-				stepsPipPosition = "~";
+				if (coinsPassiveCounterNow - coinsPassiveCounterBefore >= coinsPassiveClick && coinsCurrent > 0 && coinsSubtracting <= 0 && coinsPassiveActive == true) {
+					coinsCurrent += coinsPassivePower;
 
-				for (p = 0; p < (stepsStaminaMax - stepsStaminaCurrent); p += stepsTickWorth) {		
-					stepsPipPosition += "~";
+					coinsPassiveCounterBefore = performance.now();
 				}
 
-				stepsPipPosition += "|";
+				coinsAddingTimeNow = performance.now();
 
-				if (buttonJustClicked == true && stepsCurrent > 0 && stepsAdding <= 0) {
-					stepsCurrent -= stepsClickPower;
-	
-					if (stepsStaminaCurrent > 0) {
-						stepsStaminaCurrent -= 1;
-					}
-				}
-
-				stepsPassiveCounterNow = performance.now();
-
-				if (stepsPassiveCounterNow - stepsPassiveCounterBefore >= stepsPassiveClick && stepsCurrent > 0 && 							stepsAdding <= 0 && stepsPassiveActive == true) {
-					stepsCurrent -= stepsPassivePower;
-
-					stepsPassiveCounterBefore = performance.now();
-				}
-
-				stepsAddingTimeNow = performance.now();
-
-				if (stepsAdding > 0 && stepsAddingTimeNow - stepsAddingTimeBefore >= stepsAddingUpdate) {
+				if (coinsSubtracting > 0 && coinsSubtratcingTimeNow - coinsSubtractingTimeBefore >= coinsSubtractingUpdate) {
 					buttonBlocked = true;
 
-					stepsAdding -= stepsAddingIncrement;
-					stepsCurrent += stepsAddingIncrement;
+					coinsSubtracting += coinsSubtractingIncrement;
+					coinsCurrent -= coinsSubtractingIncrement;
 
-					stepsAddingTimeBefore = performance.now();
+					coinsSubtractingTimeBefore = performance.now();
 				}
-				else if (stepsAdding <= 0) {
+				else if (coinsSubtracting <= 0) {
 					buttonBlocked = false;
 				}
 			}
 
-/* Button functions */	
+		/* Button functions */	
 
 
 			function drawButton() {
@@ -1288,6 +1710,10 @@
 			}
 
 			function mouseLeaveHandler() {
+				if (isButtonClick == true) {
+					isButtonFlick = true;
+				}
+
 				isButtonHover = false;
 				isButtonClick = false;
 			}
@@ -1302,7 +1728,7 @@
 				}
 
 				isButtonClick = false;
-				isButtonHeld = false;
+				isButtonHeld = false;				
 				buttonHoldPending = false;
 				buttonIgnoreClick = false;
 			}
@@ -1312,7 +1738,7 @@
 					buttonImage = buttonClick;
 					
 					if (isButtonHover == false) {
-						buttonImage = buttonIdle;
+						buttonImage = buttonIdle;						
 					}
 
 					timeHeldDown = performance.now() - timeLastClick;
@@ -1331,10 +1757,13 @@
 				else {
 					buttonImage = buttonIdle;
 				}
+				
 				buttonJustClicked = false;
+				isButtonFlick = false;
 
 				timeUnpressed = performance.now() - timeLastClick;
 			}
+		
 
 			
 
