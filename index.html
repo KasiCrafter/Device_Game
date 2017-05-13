@@ -1,0 +1,1348 @@
+<!doctype html>
+<html>
+	<head>
+		<title>Device Testing</title>
+		<meta charset="UTF-8">
+		<style>
+			body {
+				background-color: black;
+			}
+			canvas {
+				background: white;
+			}
+			#auxDisplay {
+				position: absolute;
+				top: 8px;
+				left: 132px;
+			}
+			#theButton {
+				cursor : pointer;
+			}
+			
+		</style>
+	</head>
+	<body onload="gameLoop()">
+		<canvas id="screenBack" width="120" height="140"></canvas>
+		<canvas id="theButton" width="120" height="48"></canvas>
+		<canvas id="auxDisplay" width="120" height="88"></canvas> <!-- height = 88   -->
+		<div style="display:none;">
+  			<img id="background" src="images/DtctrBckgrndBs.png" width="120" height="140">
+			<img id="blackScreen" src="images/BlackScreen.png" width="120" height="140">
+ 			<img id="gridLayer" src="images/DtctrsLstLr.png" width="120" height="140">
+ 			<img id="fontOnWhite" src="images/TextOnWhite.png" width="120" height="140">
+			<img id="fontOnBlack" src="images/TextOnBlack.png" width="120" height="140">	
+
+  			<img id="idle" src="images/TrnsprntTktPxls.png" width="120" height="140">
+  			<img id="idle2" src="images/TakuyaIdle2.png" width="120" height="140">
+ 			<img id="walking1" src="images/TakuyaWalk1.png" width="120" height="140">
+			<img id="walking2" src="images/TakuyaWalk2.png" width="120" height="140">
+			<img id="return" src="images/ReturnMenuIcon.png" width="120" height="100">
+			<img id="strobe" src="images/StrobeMenuIcon.png" width="120" height="100">
+			<img id="minigame" src="images/MinigameMenuIcon.png" width="120" height="100">
+			<img id="unselectedSquare" src="images/UnselectedSquareMenuIcon.png" width="16" height="12">
+			<img id="selectedSquare" src="images/SelectedSquareMenuIcon.png" width="16" height="12">
+			<img id="unselectedX" src="images/UnselectedXMenuIcon.png" width="20" height="12">
+			<img id="selectedX" src="images/SelectedXMenuIcon.png" width="20" height="12">
+
+			<img id="theButtonIdle" src="images/TheButtonIdle.png" width="120" height="48">
+			<img id="theButtonHover" src="images/TheButtonHover.png" width="120" height="48">
+			<img id="theButtonClick" src="images/TheButtonClicked.png" width="120" height="48">
+
+			<img id="stepsTest" src="images/AuxTest.png" width="120" height="140">
+		</div>
+
+		<script>
+			var gameState = "idle";
+			var pixelSize = 4;
+
+			var mainScreen = document.getElementById("screenBack");
+			var ctxMain = mainScreen.getContext("2d");
+			var pointerX = 0;
+			var pointerY = 0;
+			var image = document.getElementById("background");
+			var image2 = document.getElementById("idle");
+			var image3 = document.getElementById("gridLayer");
+			var image4 = document.getElementById("idle2");
+			var walk1 = document.getElementById("walking1");
+			var walk2 = document.getElementById("walking2");
+			var idleState = "idle";
+			var idleCounter = 0;
+			var currentIdle = image2;
+			var flipImage = false;
+			var backgroundColor = [];
+			var invertImageData = [];
+			var invertOn = false;
+			
+			var returnIcon = document.getElementById("return");
+			var strobeIcon = document.getElementById("strobe");
+			var minigameIcon = document.getElementById("minigame");
+			var squareIcon1 = document.getElementById("unselectedSquare");
+			var squareIcon2 = document.getElementById("selectedSquare");
+			var xSelectIcon = document.getElementById("selectedX");
+			var xUnselectIcon = document.getElementById("unselectedX");
+
+			var monsterStatTable = [
+				{
+					species : "",
+					nickname : "",
+
+					level : 0,
+					hearts : 0,
+					health : 0,
+					guts : 0,
+					wits : 0,
+					skill : 0,
+					speed : 0,
+					geswoleLimit : 0,
+					moveList : [],
+					knownMoves : [],
+
+					miniGuts : 0,
+					miniWits : 0,
+					miniSkill : 0,
+
+					affection : 0,
+					distanceWalked : 0,
+
+					borrowedPower : [],
+					fruitPower : []
+				}
+			];
+
+			var animationQueue = [];
+			var animationIsRecord = true;
+
+			function AnimationObject (sprite, coordX, coordY, ctx, screen, input, f1, d1, q1, w1, e1, c1, o1, f2, d2, q2, w2, e2, c2, o2,  f3, 					d3, q3, w3, e3, c3, o3, f4, d4, q4, w4, e4, c4, o4, f5, d5, q5, w5, e5, c5, o5, f6, d6, q6, w6, e6, c6, o6) {
+				this.sprite = sprite;
+				this.coordX = coordX;
+				this.coordY = coordY;
+				this.ctx = ctx;
+				this.screen = screen;
+				this.input = input;
+				this.functionData = -1;
+				this.argsCheck = 0;
+				
+				if (arguments.length == 13) {
+					this.argsCheck = 1;
+				}
+				else if (arguments.length == 20) {
+					this.argsCheck = 2;
+				}
+				else if (arguments.length == 27) {
+					this.argsCheck = 3;
+				}
+				else if (arguments.length == 34) {
+					this.argsCheck = 4;
+				}
+				else if (arguments.length == 41) {
+					this.argsCheck = 5;
+				}
+				else{
+					this.argsCheck = -1;
+				}
+
+				this.functionArray = [
+					{
+						function : f1,
+						delay: d1,
+						isDone : false,
+						queuePos : q1,
+						timeLast : performance.now(),
+						doWhen : w1,
+						doEvery : e1,
+						doChain : c1,
+						doOnce : o1
+					},
+					{
+						function : f2,
+						delay: d2,
+						isDone : false,
+						queuePos : q2,
+						timeLast : performance.now(),
+						doWhen : w2,
+						doEvery : e2,
+						doChain : c2,
+						doOnce : o2
+					},
+					{
+						function : f3,
+						delay: d3,
+						isDone : false,
+						queuePos : q3,
+						timeLast : performance.now(),
+						doWhen : w3,
+						doEvery : e3,
+						doChain : c3,
+						doOnce : o3
+					},
+					{
+						function : f4,
+						delay: d4,
+						isDone : false,
+						queuePos : q4,
+						timeLast : performance.now(),
+						doWhen : w4,
+						doEvery : e4,
+						doChain : c4,
+						doOnce : o4
+					},
+					{
+						function : f5,
+						delay: d5,
+						isDone : false,
+						queuePos : q5,
+						timeLast : performance.now(),
+						doWhen : w5,
+						doEvery : e5,
+						doChain : c5,
+						doOnce : o5
+					},
+					{
+						function : f6,
+						delay: d6,
+						isDone : false,
+						queuePos : q6,
+						timeLast : performance.now(),
+						doWhen : w6,
+						doEvery : e6,
+						doChain : c6,
+						doOnce : o6
+					}
+				];
+
+				if (f2 == undefined) {
+					this.functionArray[1].isDone = true;
+				}
+
+				if (f3 == undefined) {
+					this.functionArray[2].isDone = true;
+				}
+
+				if (f4 == undefined) {
+					this.functionArray[2].isDone = true;
+				}
+			}
+
+			var menuPointer = 0;
+			var menuAnchor = 0;
+			var menuPips = 0;
+			var menuMiddle = 0;
+			var menuCurrentPip = 0;
+			var menuPipImage = squareIcon1;
+			var menuPipIndent = 0;
+			var menuPipTimeBefore = 0;
+			var menuPipTimeNow = 0;
+			var menuPipRate = 300;
+			var menuIndexStack = [];
+
+			var menuItems = [
+				{	
+					title : "RETURN",
+					sprite : returnIcon,
+					description : "HOLD BUTTON TO EXIT MENU.",
+					referNext : 0,
+					referEnter : menuReturn,
+					isDisplayed : true
+				},
+				{	
+					title : "GAMES",
+					sprite : minigameIcon,
+					description : "PLAY TO LOWER THE STEP COUNT.",
+					referNext : 0,
+					referEnter : 2,
+					isDisplayed : true
+				},
+				{	
+					title : "STROBE",
+					sprite : strobeIcon,
+					description : "TEST FOR SCREEN REFRESH RATE.",
+					referNext : 0,
+					referEnter : strobeGame,
+					isDisplayed : true
+				},
+				{	
+					title : "STROBE 3",
+					sprite : strobeIcon,
+					description : "TEST FOR SCREEN REFRESH RATE.",
+					referNext : 0,
+					referEnter : 0,
+					isDisplayed : true
+				},
+				{	
+					title : "STROBE 4",
+					sprite : strobeIcon,
+					description : "TEST FOR SCREEN REFRESH RATE.",
+					referNext : 0,
+					referEnter : 0,
+					isDisplayed : true
+				},
+				{	
+					title : "STROBE 5",
+					sprite : strobeIcon,
+					description : "TEST FOR SCREEN REFRESH RATE.",
+					referNext : 0,
+					referEnter : 0,
+					isDisplayed : true
+				},
+				{	
+					title : "STROBE 6",
+					sprite : strobeIcon,
+					description : "TEST FOR SCREEN REFRESH RATE.",
+					referNext : 0,
+					referEnter : 0,
+					isDisplayed : true
+				}
+			]
+
+			var subFunctionInitialized = false;
+			var stepReward = 0;
+			var strobeRate = Infinity;
+			var strobeFirstClick = 0;
+			var strobeDeltaClick = true;
+			
+
+			var auxScreen = document.getElementById("auxDisplay");
+			var ctxAux = auxScreen.getContext("2d");
+			var blackBackground = document.getElementById("blackScreen");
+			var textOnWhite = document.getElementById("fontOnWhite");
+			var textOnBlack = document.getElementById("fontOnBlack");			
+			var stepsCurrent = 500;
+			var stepsTotal = 0;
+			var stepsToAdd = 0;
+			var stepsAdding = 0;
+			var stepsAddingUpdate = 100;
+			var stepsAddingIncrement = 1;
+			var stepsAddingTimeBefore = 0;
+			var stepsAddingTimeNow = 0;
+			var stepsClickPower = 1;
+			var stepsPassiveClick = 0;
+			var stepsPassivePower = 1;
+			var stepsPassiveActive = false;
+			var stepsPassiveCounterBefore = performance.now();
+			var stepsPassiveCounterNow = 0;
+			var stepsStaminaCurrent = 100;
+			var stepsStaminaMax = 100;
+			var stepsRecoverRate = 500;
+			var stepsRecoverNow = performance.now();
+			var stepsRecoverBefore = 0;
+			var stepsPipPosition = "";
+			var stepsTickNumber = 10 - 1;
+			var stepsTickWorth = 0;
+			var stepsTickLayout = "";
+			
+
+			var auxTest = document.getElementById("stepsTest");
+
+			var textAux = "";
+			var textQueue = [];
+			var textIgnoreReset = false;
+			function TextMeta(id) {
+				this.id = id;
+				this.textTimeLast = performance.now();
+				this.textIsCrawl = false;
+				this.textMaxCrawl = 0;
+				this.textVisableCrawl = 0;
+				this.textCrawlPosition = 0;
+				this.textCrawlCount = 1;
+			}
+			var textTimeNow = 0;
+			var textTimeCount = 0;
+			var textStartCrawl = 1500;
+			var textNextCrawl = 100;
+			var textScrollSpeed = 4;
+			var textWidth = 16;
+			var textHeight = 24;
+			var textParser = [
+				{character : " ", sheetRow : 7, sheetColumn : 0, widthModify : -8},
+				{character : "~", sheetRow : 8, sheetColumn : 0, widthModify : -12},
+				{character : ".", sheetRow : 1, sheetColumn : 5, widthModify : -8},
+				{character : "_", sheetRow : 0, sheetColumn : 6, widthModify : -4},
+				{character : ";", sheetRow : 1, sheetColumn : 6, widthModify : -12},
+				{character : "|", sheetRow : 2, sheetColumn : 6, widthModify : -12},
+				{character : "#", sheetRow : 3, sheetColumn : 8, widthModify : 0},
+				{character : "E", sheetRow : 4, sheetColumn : 0, widthModify : 0},
+				{character : "T", sheetRow : 5, sheetColumn : 2, widthModify : 0},
+				{character : "1", sheetRow : 5, sheetColumn : 3, widthModify : 0},
+				{character : "2", sheetRow : 6, sheetColumn : 3, widthModify : 0},
+				{character : "3", sheetRow : 0, sheetColumn : 4, widthModify : 0},
+				{character : "4", sheetRow : 1, sheetColumn : 4, widthModify : 0},
+				{character : "5", sheetRow : 2, sheetColumn : 4, widthModify : 0},
+				{character : "6", sheetRow : 3, sheetColumn : 4, widthModify : 0},
+				{character : "7", sheetRow : 4, sheetColumn : 4, widthModify : 0},
+				{character : "8", sheetRow : 5, sheetColumn : 4, widthModify : 0},
+				{character : "9", sheetRow : 6, sheetColumn : 4, widthModify : 0},
+				{character : "0", sheetRow : 0, sheetColumn : 5, widthModify : 0},
+				{character : "A", sheetRow : 0, sheetColumn : 0, widthModify : 0},
+				{character : "O", sheetRow : 0, sheetColumn : 2, widthModify : 0},
+				{character : "I", sheetRow : 1, sheetColumn : 1, widthModify : 0},
+				{character : "N", sheetRow : 6, sheetColumn : 1, widthModify : 0},
+				{character : "S", sheetRow : 4, sheetColumn : 2, widthModify : 0},
+				{character : "H", sheetRow : 0, sheetColumn : 1, widthModify : 0},
+				{character : "R", sheetRow : 3, sheetColumn : 2, widthModify : 0},
+				{character : "D", sheetRow : 3, sheetColumn : 0, widthModify : 0},
+				{character : "L", sheetRow : 4, sheetColumn : 1, widthModify : 0},
+				{character : "C", sheetRow : 2, sheetColumn : 0, widthModify : 0},
+				{character : "U", sheetRow : 6, sheetColumn : 2, widthModify : 0},
+				{character : "M", sheetRow : 5, sheetColumn : 1, widthModify : 0},
+				{character : "W", sheetRow : 1, sheetColumn : 3, widthModify : 0},
+				{character : "F", sheetRow : 5, sheetColumn : 0, widthModify : 0},
+				{character : "G", sheetRow : 6, sheetColumn : 0, widthModify : 0},
+				{character : "Y", sheetRow : 3, sheetColumn : 3, widthModify : 0},
+				{character : "P", sheetRow : 1, sheetColumn : 2, widthModify : 0},
+				{character : "B", sheetRow : 1, sheetColumn : 0, widthModify : 0},
+				{character : "V", sheetRow : 0, sheetColumn : 3, widthModify : 0},
+				{character : "K", sheetRow : 3, sheetColumn : 1, widthModify : 0},
+				{character : "J", sheetRow : 2, sheetColumn : 1, widthModify : 0},
+				{character : "X", sheetRow : 2, sheetColumn : 3, widthModify : 0},
+				{character : "Q", sheetRow : 2, sheetColumn : 2, widthModify : 0},
+				{character : "Z", sheetRow : 4, sheetColumn : 3, widthModify : 0},
+				{character : "?", sheetRow : 2, sheetColumn : 5, widthModify : 0},
+				{character : "!", sheetRow : 3, sheetColumn : 5, widthModify : 0},
+				{character : "(", sheetRow : 4, sheetColumn : 5, widthModify : -4},
+				{character : ")", sheetRow : 5, sheetColumn : 5, widthModify : -4},
+				{character : ",", sheetRow : 6, sheetColumn : 5, widthModify : -4},
+				{character : "[", sheetRow : 3, sheetColumn : 6, widthModify : -4},
+				{character : "]", sheetRow : 4, sheetColumn : 6, widthModify : -4},
+				{character : "-", sheetRow : 5, sheetColumn : 6, widthModify : -4},
+				{character : ":", sheetRow : 6, sheetColumn : 6, widthModify : -8},
+				{character : "+", sheetRow : 0, sheetColumn : 7, widthModify : 0},
+				{character : "=", sheetRow : 1, sheetColumn : 7, widthModify : 0},
+				{character : "<", sheetRow : 2, sheetColumn : 7, widthModify : 0},
+				{character : ">", sheetRow : 3, sheetColumn : 7, widthModify : 0},
+				{character : "*", sheetRow : 4, sheetColumn : 7, widthModify : 0},
+				{character : "/", sheetRow : 5, sheetColumn : 7, widthModify : 0},
+				{character : "\\", sheetRow : 6, sheetColumn : 7, widthModify : 0},
+				{character : "%", sheetRow : 0, sheetColumn : 8, widthModify : 0},
+				{character : "^", sheetRow : 1, sheetColumn : 8, widthModify : 0},
+				{character : "'", sheetRow : 2, sheetColumn : 8, widthModify : 0}
+			];
+			
+
+			var theButtonScreen = document.getElementById("theButton");
+			var ctxButton = theButtonScreen.getContext("2d");
+			var buttonIdle = document.getElementById("theButtonIdle");
+			var buttonHover = document.getElementById("theButtonHover");
+			var buttonClick = document.getElementById("theButtonClick");
+			var isButtonClick = false;
+			var isButtonHeld = false;
+			var isButtonHover = false;
+			var buttonBlocked = false;
+			var buttonHoldPending = false;
+			var buttonIgnoreClick = false;
+			var timeStartClick = -1;
+			var timeLastClick = -1;
+			var timeHeldDown = 0;
+			var timeUnpressed = -1;
+			var buttonJustClicked = false;
+			var timeForHold = 500;
+			var timeForDrop = 1700;
+			var buttonImage = buttonIdle;
+
+			theButtonScreen.addEventListener("mouseenter", mouseEnterHandler, false);
+			theButtonScreen.addEventListener("mouseleave", mouseLeaveHandler, false);
+			theButtonScreen.addEventListener("mouseup", mouseUpHandler, false);
+			document.addEventListener("mouseup", mouseUpHandler, false);
+			theButtonScreen.addEventListener("mousedown", mouseDownHandler, false)
+
+
+/* Universal screen functions */
+
+			function gameLoop() {
+
+				updateMenu();
+				updateText();
+
+			/* Main screen draws */
+
+				ctxMain.clearRect(0,0, mainScreen.width, mainScreen.height);
+				drawBackground(ctxMain); 				
+
+				if (gameState == "idle") {
+					drawIdle();
+				}
+				else if (gameState == "menu") {
+					drawMenu();
+				}
+				else if (gameState == "subFunction") {
+					menuItems[menuPointer].referEnter();
+				}
+
+			/* Aux screen draws */
+
+				ctxAux.clearRect(0, 0, auxScreen.width, auxScreen.height);
+				drawBackground(ctxAux);				
+
+				if (gameState == "idle") {
+					updateSteps();
+					drawSteps();
+				}
+				else if (gameState == "menu") {
+					drawAux();
+				}
+				else if (gameState == "subFunction") {
+					drawAux();
+				}	
+
+				drawGrid(ctxAux);
+
+				animationParser();
+
+				drawGrid(ctxMain);
+
+			/* Button draws */
+
+				buttonUpdate(); 
+				drawButton();
+				
+				requestAnimationFrame(gameLoop);
+			}
+
+
+
+			function animationParser() {	
+			        if (animationQueue.length > 0){
+				animationIsRecord = false;
+			        }		   
+			        for (a = 0; a < animationQueue.length; a++) {
+				for (p = 0; p < animationQueue[a].functionArray.length; p++) {
+				        for (f = 0; f < animationQueue[a].functionArray.length; f++) {
+					if (animationQueue[a].functionArray[f].queuePos == p) {
+					        if (animationQueue[a].functionArray[f].isDone == false && 
+					        performance.now() - animationQueue[a].functionArray[f].timeLast >= 
+					        animationQueue[a].functionArray[f].delay) {
+						animationQueue[a].functionArray[f].delay = 0;
+						if (eval(animationQueue[a].functionArray[f].doWhen[0]) == true) {
+						     animationQueue[a].functionArray[f].function(
+							animationQueue[a].ctx, 
+							animationQueue[a].screen, 
+							animationQueue[a].sprite, 
+							animationQueue[a].coordX, 
+							animationQueue[a].coordY, 
+							animationQueue[a].functionData
+						    );
+
+						        animationQueue[a].functionArray[f].timeLast = performance.now();
+						}
+  				   		else if (performance.now() - animationQueue[a].functionArray[f].timeLast >= 
+						eval(animationQueue[a].functionArray[f].doEvery[0]) && 
+						eval(animationQueue[a].functionArray[f].doEvery[0]) > -1) {
+						     animationQueue[a].functionArray[f].function(
+							animationQueue[a].ctx, 
+							animationQueue[a].screen, 
+							animationQueue[a].sprite, 
+							animationQueue[a].coordX, 
+							animationQueue[a].coordY, 
+							animationQueue[a].functionData
+						    );
+
+					                      animationQueue[a].functionArray[f].doEvery[1] -= 
+						        animationQueue[a].functionArray[f].doEvery[0];
+
+						        if (animationQueue[a].functionArray[f].doEvery[1] < 0) {
+							animationQueue[a].functionArray[f].doEvery[0] = -1;
+						        }
+
+						        animationQueue[a].functionArray[f].timeLast = performance.now();
+						}
+						else if (animationQueue[a].functionArray[f].doChain.length > 0 && performance.now() - 									animationQueue[a].functionArray[f].timeLast >= 
+						eval(animationQueue[a].functionArray[f].doChain[0])) {
+						     animationQueue[a].functionArray[f].function(
+							animationQueue[a].ctx, 
+							animationQueue[a].screen, 
+							animationQueue[a].sprite, 
+							animationQueue[a].coordX, 
+							animationQueue[a].coordY, 
+							animationQueue[a].functionData
+						    );
+
+ 						        animationQueue[a].functionArray[f].doChain.shift();
+
+						        animationQueue[a].functionArray[f].timeLast = performance.now();
+						}
+						else if (performance.now() - animationQueue[a].functionArray[f].timeLast >=
+						eval(animationQueue[a].functionArray[f].doOnce) && 
+						eval(animationQueue[a].functionArray[f].doOnce) != -1){
+						     animationQueue[a].functionArray[f].function(
+							animationQueue[a].ctx, 
+							animationQueue[a].screen, 
+							animationQueue[a].sprite, 
+							animationQueue[a].coordX, 
+							animationQueue[a].coordY, 
+							animationQueue[a].functionData
+						    );
+
+						        animationQueue[a].functionArray[f].doOnce = -1;
+						        animationQueue[a].functionArray[f].timeLast = performance.now();
+						}
+						else {
+							if(performance.now() -  animationQueue[a].functionArray[f].timeLast >= 
+							eval(animationQueue[a].functionArray[f].doWhen[1])) {
+								animationQueue[a].functionArray[f].isDone = true;
+							}
+						}
+					         }
+					 }
+				        }
+				}
+			        }
+			}
+
+			function drawBackground (context) {
+				context.drawImage(image, 0, 0);
+
+				if (invertOn == false) {
+					backgroundColor = context.getImageData(0, 0, 1, 1);
+				}
+			}
+
+			function drawBlack(context) {
+				context.drawImage(blackBackground, 0, 0);
+			}
+
+			function drawGrid(context) {
+				context.drawImage(image3, 0, 0);
+			}
+
+			function drawText(transcribe, textType, context, screen, addX, addY, id) {
+				transcribe = transcribe.toUpperCase();
+				transcribe = transcribe.split("");
+
+				pointerX = addX;
+				pointerY = addY;
+				var trackerCount = 0;
+
+				var lineLength = 0;
+				var characterWidth = 0;
+				var wordLength = 0;
+				var prevSpaceIndex = 0;
+				var breakTracker = [];
+				var maxLength =  auxScreen.width;
+
+
+				for (q = 0; q < textQueue.length; q++) {
+					if (id == textQueue[q].id) {
+						break;
+					}
+				}
+
+				if (q == textQueue.length) {
+					textQueue.push(new TextMeta(id));
+				}
+
+				if (context == ctxMain) {
+					textQueue[q].textVisableCrawl = mainScreen.width; 
+				}
+				else if (context == ctxAux) {
+					textQueue[q].textVisableCrawl = auxScreen.height;
+				}
+
+				if (screen == auxScreen){
+					textStartCrawl = 1500;
+					textNextCrawl = 100;
+					textScrollSpeed = 4;
+				}
+				else if (screen == mainScreen){
+					textStartCrawl = 1000;
+					textNextCrawl = 100;
+					textScrollSpeed = 4;
+				}
+
+
+				for (tldr = 0; tldr < transcribe.length; tldr++) {
+					if (transcribe[tldr] == " " || transcribe[tldr] == "." || transcribe[tldr] == "," || transcribe[tldr] == ";"
+					|| transcribe[tldr] == ":" || transcribe[tldr] == "'") {
+						characterWidth = 8;
+						
+						if ((transcribe[tldr] == " " || transcribe[tldr + 1]) && screen == auxScreen) {  
+					/*skip this step for text on main screen */
+							wordLength = 0;
+
+							prevSpaceIndex = tldr;
+						}
+					}
+					else if(transcribe[tldr] == "~" || transcribe[tldr] == "|") {
+						characterWidth = 4;
+					}
+
+					else if (transcribe[tldr] == "(" || transcribe[tldr] == ")" || transcribe[tldr] == "[" || transcribe[tldr] == "]"
+					|| transcribe[tldr] == "-" || transcribe[tldr] == "," || transcribe[tldr] == "_") {
+						characterWidth = 12;
+					}
+					else {
+						characterWidth = 16;
+					}
+
+					if (lineLength + characterWidth > maxLength && screen == auxScreen) {  
+						if (wordLength + characterWidth < maxLength) {  
+							breakTracker.push(prevSpaceIndex);
+						
+							if (lineLength <= maxLength) {
+								wordLength += characterWidth;
+							}
+		
+							lineLength = wordLength;
+						}
+						else {
+							transcribe.splice(0, transcribe.length, "T", "L", "D", "R");
+							breakTracker.splice(0, breakTracker.length);
+							tldr += 5;
+						}						
+					}						
+					else if (screen == auxScreen) {
+						if (transcribe[tldr] != " ") { 
+							wordLength += characterWidth;
+							}
+
+						lineLength += characterWidth;
+					}
+					else if (screen == mainScreen) {
+						lineLength += characterWidth;
+					}
+				}
+
+				if (screen == auxScreen) {
+					textQueue[q].textMaxCrawl = (breakTracker.length + 1) * textHeight + addY - 
+					textQueue[q].textVisableCrawl;
+				}
+				else if (screen == mainScreen) {
+					textQueue[q].textMaxCrawl = lineLength + addX - textQueue[q].textVisableCrawl;
+				}
+
+				textTimeNow = performance.now();
+				textTimeCount = textTimeNow - textQueue[q].textTimeLast;
+
+				if (textTimeCount >= textStartCrawl && textQueue[q].textIsCrawl == false && 
+				textQueue[q].textCrawlPosition == 0 && (breakTracker.length + 1 > 3 || 
+				(screen == mainScreen && lineLength > maxLength))){
+					textQueue[q].textIsCrawl = true;
+				}			
+				else if (textQueue[q].textCrawlPosition >= textQueue[q].textMaxCrawl && textTimeCount >= textStartCrawl) {
+					textQueue[q].textTimeLast = performance.now();
+
+					textQueue[q].textCrawlCount = 0;
+					textQueue[q].textCrawlPosition = 0;
+				}
+
+				if (textQueue[q].textIsCrawl == true && textTimeCount >= textNextCrawl) {
+					textQueue[q].textTimeLast = performance.now();
+
+					textQueue[q].textCrawlCount++;
+					textQueue[q].textCrawlPosition = textQueue[q].textCrawlCount * textScrollSpeed;
+
+					if (textQueue[q].textCrawlPosition >= textQueue[q].textMaxCrawl) {
+						textQueue[q].textIsCrawl = false;
+					}
+				}
+
+				if (screen == mainScreen){
+					pointerX = -textQueue[q].textCrawlPosition + addX;
+				}
+
+				for (i = 0; i < transcribe.length; i++) {				
+					for (c = 0; c < textParser.length; c++) {
+						if (screen == auxScreen) {
+							if (i < breakTracker[0]) {  
+							/* Add a completely different sequence for main screen prints */
+								pointerY = -textQueue[q].textCrawlPosition + addY;
+							}
+
+							if (i >= breakTracker[trackerCount]) {
+								pointerX = addX;
+								pointerY = textHeight * (trackerCount + 1) + addY - 													textQueue[q].textCrawlPosition;
+
+								trackerCount += 1;
+							}
+							else if (pointerY < textQueue[q].textVisableCrawl && pointerY >= -textHeight) {
+								if (textParser[c].character == transcribe[i]) {
+									context.drawImage(
+										textType, 
+										textParser[c].sheetRow * textWidth, 														textParser[c].sheetColumn * textHeight, 
+										textWidth + textParser[c].widthModify, 													textHeight, 
+										pointerX, 
+										pointerY, 
+										textWidth + textParser[c].widthModify, 
+										textHeight
+									);
+								
+									pointerX += textWidth + textParser[c].widthModify;
+								}
+							}
+						}
+						else if (screen == mainScreen){
+							if (pointerX < textQueue[q].textVisableCrawl) {
+								if (textParser[c].character == transcribe[i]) {
+									context.drawImage(
+										textType, 
+										textParser[c].sheetRow * textWidth, 														textParser[c].sheetColumn * textHeight, 
+										textWidth + textParser[c].widthModify, 													textHeight, 
+										pointerX, 
+										pointerY, 
+										textWidth + textParser[c].widthModify, 
+										textHeight
+									);
+								
+									pointerX += textWidth + textParser[c].widthModify;
+								}
+							}
+						}
+					}
+				}
+				pointerX = 0;
+				pointerY = 0;
+			}
+
+			function flipHozDraw (context, screen, flippee) {
+				var flippedX = -screen.width;
+
+				animationQueue[a].functionData = 0;
+
+				context.save();
+				context.scale(-1, 1);
+				context.drawImage(flippee, flippedX, 0);
+				context.restore();
+			}
+
+			function invertColor (context, screen, sprite) {
+				invertImageData = context.getImageData(0,0, screen.width, screen.height);
+
+				for (i = 0; i < invertImageData.data.length; i += 4) {
+					if (invertImageData.data[i] == 0 && invertImageData.data[i + 1] == 0 &&
+					invertImageData.data[i + 2] == 0) {
+						invertImageData.data[i] = backgroundColor.data[0];
+						invertImageData.data[i + 1] = backgroundColor.data[1];
+						invertImageData.data[i + 2] = backgroundColor.data[2];						
+					}
+					else if (invertImageData.data[i] == backgroundColor.data[0] &&
+					invertImageData.data[i + 1] == backgroundColor.data[1] &&
+					invertImageData.data[i + 2] == backgroundColor.data[2]) {
+						invertImageData.data[i] = 0;
+						invertImageData.data[i + 1] = 0;
+						invertImageData.data[i + 2] = 0;
+					}
+				}
+
+				if (invertOn == true) {
+					invertOn = false;
+				}
+				else if (invertOn == false) {
+					invertOn = true;
+				}
+			}
+
+			function invertDraw (context, screen, sprite, offsetX, offsetY, funcData) {
+				if (invertOn == true) {
+					context.putImageData(invertImageData, 0, 0);
+				}
+			}
+
+			function regDraw (context, screen, sprite, offsetX, offsetY, funcData) {
+				if (funcData != 0) {
+					context.drawImage(sprite, offsetX, offsetY);
+				}
+				
+				if (funcData != 1) {
+					animationQueue[a].functionData = -1;
+				}
+			}
+
+			function updateText() {
+				if ((buttonJustClicked == true || isButtonHeld == true) && buttonBlocked == false && isButtonHover == true && 						textIgnoreReset == false) {
+					textQueue = [];
+				}
+			}
+			
+/* Monster functions */
+
+			function personalityGenerator(monsterStats, baseValues) {
+				for (p = 0; p < baseValues.length; p++) {
+					monsterStats[p] = baseValues[p] / floor(Math.random() * 10);
+				}
+			}
+
+			function updatePersonality(monsterStats, personalityModify) {
+				for (q = 0; q < personalityModify.length; q++) {
+					monsterStats[q] += personalityModify[q];
+				}
+			}
+
+
+
+/* Menu functions */
+
+			function drawMenu() {
+				ctxMain.drawImage(menuItems[menuPointer].sprite, 0, 0);
+				textAux = menuItems[menuPointer].description;
+				drawText(menuItems[menuPointer].title, textOnWhite, ctxMain, mainScreen, 0, mainScreen.height - textHeight, 1);
+
+				menuAnchor = menuIndexStack[menuIndexStack.length - 1]
+				menuMiddle = mainScreen.height - textHeight - pixelSize - squareIcon1.height;
+
+				for (m = menuAnchor ; m != 0 && menuPips < 7; m = menuItems[m].referNext) {
+					menuPips++;
+
+					if (m == menuPointer) {
+						menuCurrentPip = menuPips;
+					}
+				}
+
+				menuPips++;
+
+				if (m == menuPointer) {
+					menuCurrentPip = menuPips;
+				}
+
+				menuPipTimeNow = performance.now();
+
+				menuPips--;
+
+				menuPipIndent = pixelSize + (squareIcon1.width * (3 - (Math.floor(menuPips / 2))));
+
+				menuPips++;
+
+				for (p = 1; p <= menuPips; p++) {
+   					if (menuCurrentPip == p && menuPipTimeNow - menuPipTimeBefore >= menuPipRate) {
+						menuPipImage = squareIcon2;
+						
+						if (menuPointer == 0) {
+							menuPipImage = xSelectIcon;
+						}				
+
+						if (menuPipTimeNow - menuPipTimeBefore >= menuPipRate * 2) {
+							menuPipTimeBefore = performance.now();
+						}
+					}
+					else {
+						menuPipImage = squareIcon1;
+
+						if (p == menuPips) {
+							menuPipImage = xUnselectIcon;
+						}
+					}
+					
+					ctxMain.drawImage(menuPipImage, menuPipIndent + ((p - 1) * squareIcon1.width), menuMiddle);
+				}
+				
+				menuPips = 0;
+			}
+			
+			function menuReturn() {
+				if (menuIndexStack.length == 1) {
+					gameState = "idle";
+					idleState = "idle";
+
+					menuIndexStack.pop();
+				}
+				else {
+					menuIndexStack.pop();
+					menuPointer = menuIndexStack[menuIndexStack.length - 1];
+				}
+			}
+
+			function updateMenu() {
+				if (isButtonHeld == true) {
+					if (menuItems[menuPointer].referNext == 0) {
+						menuItems[0].referNext = menuIndexStack[menuIndexStack.length - 1];
+					}
+					if (gameState == "idle") {
+						gameState = "menu";
+						menuPointer = 1;
+						menuIndexStack.push(menuPointer);
+						animationQueue = [];
+						animationIsRecord = true;
+					}
+					else if (gameState == "menu") {
+						if (typeof(menuItems[menuPointer].referEnter) == "number") { 
+							menuPointer = menuItems[menuPointer].referEnter;
+
+							menuIndexStack.push(menuPointer);
+						}
+						else if (typeof(menuItems[menuPointer].referEnter) == "function") {
+							if (menuPointer != 0) {
+								gameState = "subFunction";
+							}
+
+							menuItems[menuPointer].referEnter(); 
+						}
+					}
+					else if (gameState == "subFunction") {
+						gameState = "menu";
+						subFunctionInitialized = false;
+
+						animationQueue = [];
+						animationIsRecord = true;
+					}
+
+					buttonIgnoreClick = true;
+					buttonHoldPending = true;
+				}
+
+				else if (buttonJustClicked == true && gameState == "menu") {
+					if (menuItems[menuPointer].referNext == 0 || menuPointer == 0) {
+						menuItems[0].referNext = menuIndexStack[menuIndexStack.length - 1];
+					}
+
+					menuPointer = menuItems[menuPointer].referNext;
+
+					if (menuItems[menuPointer].isDisplayed == false) {
+						menuPointer = menuItems[menuPointer].referNext;
+					}
+				}
+			}
+
+/* Minigame functions */
+			
+			function strobeDance() {
+
+			}
+
+
+			function strobeGame() {
+				if (subFunctionInitialized == false) {
+					strobeRate = Infinity;
+					strobeDeltaClick = 0;
+					strobeFirstClick = true;
+					invertOn = false;
+
+					subFunctionInitialized = true;
+				}
+
+				if (animationIsRecord == true && animationQueue.length == 0) {
+					animationQueue.push(
+						new AnimationObject(
+							image2,
+							0,      /* X coord */
+							0,      /* Y coord  */
+							ctxMain,  /*  context/cxt  */
+							mainScreen,  /* screen */
+							buttonJustClicked,   /* Input */
+
+							invertDraw,  /* function  */
+							0,           /* delay  */
+							2,      /* queue pos  */
+							[false, Infinity],    /* do When  */
+							[0, Infinity],         /* do Every */
+							[],       /*  do Chain */
+							-1,     /* do Once  */
+
+							invertColor,
+							0,      /* delay  */
+							1,      /* queue pos  */
+							[false, Infinity],    /* do When  */
+							["strobeRate", Infinity],   /* do Every */
+							[],     /*  do Chain */
+							-1,    /* do Once  */
+
+							strobeDance,  /* function  */
+							0,           /* delay  */
+							0,      /* queue pos  */
+							[false, Infinity],    /* do When  */
+							["strobeRate", Infinity],         /* do Every */
+							[],       /*  do Chain */
+							-1,     /* do Once  */
+
+							regDraw,    /* function  */
+							0,           /* delay  */
+							0,      /* queue pos  */
+							[false, Infinity],    /* do When  */
+							[0, Infinity],         /* do Every */
+							[],       /*  do Chain */
+							-1     /* do Once  */
+
+
+
+						)
+					)
+				}
+
+				if (strobeFirstClick == true) {
+					textAux = "FIRST CLICK! HOLD TO EXIT!";
+				}
+				else if (strobeFirstClick == false && strobeDeltaClick < timeUnpressed) {					
+					strobeDeltaClick = timeUnpressed;					
+				}
+
+				if (strobeFirstClick == true && buttonJustClicked == true) {
+					strobeFirstClick = false;
+
+					textAux = "SECOND CLICK! HOLD TO EXIT!";
+				}
+				else if (strobeFirstClick == false && buttonJustClicked == true) {
+					strobeRate = strobeDeltaClick;
+					strobeFirstClick = true;
+					strobeDeltaClick = 0;
+				}
+			}
+
+
+/* Main screen functions */
+
+
+			function drawIdle() {
+				if (animationIsRecord == true) {
+					animationQueue.push(
+						new AnimationObject(
+							currentIdle,
+							0,      /* X coord */
+							0,      /* Y coord  */
+							ctxMain,  /*  context/cxt  */
+							mainScreen,  /* screen */
+							buttonJustClicked,   /* Input */
+
+							updateIdle,   /* function  */
+							0,      /* delay  */
+							1,      /* queue pos  */
+							[false, Infinity],    /* do When  */
+							[1000, Infinity],   /* do Every */
+							[],     /*  do Chain */
+							-1,    /* do Once  */
+
+							flipHozDraw,    /* function  */
+							0,           /* delay  */
+							2,      /* queue pos  */
+							["flipImage == true && idleState != \"walk\"", Infinity],    /* do When  */
+							[-1, Infinity],        /* do Every */
+							[],       /*  do Chain */
+							-1,      /* do Once  */
+													
+							updateWalk,    /* function  */
+							0,           /* delay  */
+							1,      /* queue pos  */
+							["buttonJustClicked", Infinity],
+							[1000, Infinity],         /* do Every */
+							[],       /*  do Chain */
+							-1,      /* do Once  */
+
+							regDraw,    /* function  */
+							0,           /* delay  */
+							2,      /* queue pos  */
+							[false, Infinity],    /* do When  */
+							[0, Infinity],         /* do Every */
+							[],       /*  do Chain */
+							-1     /* do Once  */							
+
+
+						)
+					)							
+				}
+			}
+
+			function updateIdle() {
+				if (animationQueue[a].sprite == image2) {
+					animationQueue[a].sprite = image4;
+				}
+				else if (animationQueue[a].sprite == image4) {
+					animationQueue[a].sprite = image2;
+				}
+					
+				if (Math.random() > 0.5) {
+					flipImage = true;
+				}
+				else {
+					flipImage = false;
+				}	
+			} 
+
+			function updateWalk() {
+				if (idleState == "idle" && buttonJustClicked == true && stepsAdding <= 0) { 
+
+					idleState = "walk";
+					animationQueue[a].sprite = walk1;
+					flipImage = false;				
+				}
+
+				if (idleState == "walk" && timeUnpressed <= timeForDrop && stepsAdding <= 0 && gameState == "idle") {
+					if (animationQueue[a].sprite == walk1) {
+						animationQueue[a].sprite = walk2;
+					}
+					else if (animationQueue[a].sprite == walk2) {
+						animationQueue[a].sprite = walk1;
+					}
+				}
+				else if (idleState == "walk") {
+					idleState = "idle";
+					animationQueue[a].sprite = image2;
+
+					/* timeStartClick = -1; */
+				}				
+			} 
+
+
+/* Aux screen functions */
+
+			function drawAux() {
+				ctxAux.clearRect(0, 0, auxScreen.width, auxScreen.height);
+
+				drawBackground(ctxAux);
+				drawText(textAux, textOnWhite, ctxAux, auxScreen, 0, 0, 2);
+				drawGrid(ctxAux);
+
+				/* "THE QUICK, BROWN FOX JUMPED OVER THE LAZY DOG." */
+			}
+		
+			function modifySteps() {
+
+			}
+
+
+			function drawSteps() {
+				drawText("STEPS     ", textOnBlack, ctxAux, auxScreen, 0, 0, 3);
+				drawText(stepsCurrent.toString(), textOnWhite, ctxAux, auxScreen, 0, textHeight + pixelSize, 4);
+
+				if (stepsAdding > 0) {
+					drawText(stepsAdding.toString(), textOnWhite, ctxAux, auxScreen, 0, textHeight * 2 + pixelSize, 5);
+				}
+				else {
+					drawText("F______~~E", textOnWhite, ctxAux, auxScreen, pixelSize, pixelSize * 14, 5);
+					drawText("~;~;~;~;~;~;~;~;~;~;", textOnWhite, ctxAux, auxScreen, pixelSize * 4, pixelSize * 15, 5);
+					drawText(stepsPipPosition, textOnWhite, ctxAux, auxScreen, pixelSize * 4, pixelSize * 14, 5);
+				}
+			}
+
+
+			function updateSteps() {
+				if (stepsCurrent == 0 && stepsAdding == 0) {
+					stepsToAdd = 20;
+					stepsAdding = stepsToAdd;
+					stepsAddingTimeBefore = performance.now();
+					
+					if (stepsToAdd >= 100) {
+						stepsAddingIncrement = 5
+					}
+					if (stepsToAdd >= 500) {
+						stepsAddingIncrement = 25;
+					}
+					else {
+						stepsAddingIncrement = 1;
+					}
+				}
+
+				stepsRecoverNow = performance.now();
+
+				if (stepsRecoverNow - stepsRecoverBefore >= stepsRecoverRate && stepsStaminaCurrent < stepsStaminaMax) {		
+					stepsRecoverBefore = stepsRecoverNow;
+					
+					stepsStaminaCurrent++;
+				}
+
+				stepsTickWorth = Math.round(stepsStaminaMax / 19);
+
+				stepsPipPosition = "~";
+
+				for (p = 0; p < (stepsStaminaMax - stepsStaminaCurrent); p += stepsTickWorth) {		
+					stepsPipPosition += "~";
+				}
+
+				stepsPipPosition += "|";
+
+				if (buttonJustClicked == true && stepsCurrent > 0 && stepsAdding <= 0) {
+					stepsCurrent -= stepsClickPower;
+	
+					if (stepsStaminaCurrent > 0) {
+						stepsStaminaCurrent -= 1;
+					}
+				}
+
+				stepsPassiveCounterNow = performance.now();
+
+				if (stepsPassiveCounterNow - stepsPassiveCounterBefore >= stepsPassiveClick && stepsCurrent > 0 && 							stepsAdding <= 0 && stepsPassiveActive == true) {
+					stepsCurrent -= stepsPassivePower;
+
+					stepsPassiveCounterBefore = performance.now();
+				}
+
+				stepsAddingTimeNow = performance.now();
+
+				if (stepsAdding > 0 && stepsAddingTimeNow - stepsAddingTimeBefore >= stepsAddingUpdate) {
+					buttonBlocked = true;
+
+					stepsAdding -= stepsAddingIncrement;
+					stepsCurrent += stepsAddingIncrement;
+
+					stepsAddingTimeBefore = performance.now();
+				}
+				else if (stepsAdding <= 0) {
+					buttonBlocked = false;
+				}
+			}
+
+/* Button functions */	
+
+
+			function drawButton() {
+				ctxButton.clearRect(0,0, theButtonScreen.width, theButtonScreen.height);
+
+				drawBackground(ctxButton);
+				ctxButton.drawImage(buttonImage, 0, 0);
+				drawGrid(ctxButton);
+			}
+
+			function mouseDownHandler() {
+				isButtonClick = true;
+
+				timeStartClick, timeLastClick = performance.now();	
+				timeUnpressed = 0;
+			}
+
+			function mouseEnterHandler() {
+				isButtonHover = true;
+			}
+
+			function mouseLeaveHandler() {
+				isButtonHover = false;
+				isButtonClick = false;
+			}
+
+			function mouseUpHandler() {
+				if (isButtonClick == true && isButtonHover == true && buttonIgnoreClick == false) {
+					buttonJustClicked = true;
+				}		
+
+				if (isButtonHover == true) {
+					timeStartClick = 0; 
+				}
+
+				isButtonClick = false;
+				isButtonHeld = false;
+				buttonHoldPending = false;
+				buttonIgnoreClick = false;
+			}
+
+			function buttonUpdate() {
+				if (isButtonClick == true && buttonBlocked == false) {
+					buttonImage = buttonClick;
+					
+					if (isButtonHover == false) {
+						buttonImage = buttonIdle;
+					}
+
+					timeHeldDown = performance.now() - timeLastClick;
+
+					if (timeHeldDown >= timeForHold && buttonHoldPending == false && isButtonHover == true) {
+						isButtonHeld = true; 
+					} 
+					else if (buttonHoldPending == true) {
+						isButtonHeld = false;
+					}
+
+				}
+				else if (isButtonHover == true) {
+					buttonImage = buttonHover;			
+				}
+				else {
+					buttonImage = buttonIdle;
+				}
+				buttonJustClicked = false;
+
+				timeUnpressed = performance.now() - timeLastClick;
+			}
+
+			
+
+
+			/* requestAnimationFrame(gameLoop); */
+ 
+		</script>
+	</body>
+</html>
+
+
