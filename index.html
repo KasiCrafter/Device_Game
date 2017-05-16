@@ -60,6 +60,7 @@
 			var gameState = "idle";
 			var gamePrev = "";
 			var pixelSize = 4;
+			var isTaskDone = false;
 
 			var blah = document.getElementById("environment");
 
@@ -374,14 +375,18 @@
 			}
 
 			var inventory = [
-				new ItemObject("REPLICATE", "?", herb1, "HOLD BUTTON FOR DUPE.", "rigging",[testAdd]),
+				new ItemObject("REPLICATE", "?", herb1, "HOLD BUTTON FOR DUPE.", "dev",[testAdd]),
 				new ItemObject("    EXIT       EXIT       EXIT       EXIT   ","X", herb1,"HOLD BUTTON TO EXIT MENU.", "dev",[])			
 			];
 			var invPos = 0;
+			var invPosHolder = 0;
 			var invTarget = 0;
 			var invTextRaw = "";
 			var invArrayFocus = [];
-			var invNumberToUse = 1;
+			var invNumberToUse = 1;		
+			var invBlinkTime = 300;
+			var invBlinkBefore = 0;
+
 
 			var itemTable = [
 				new ItemObject(
@@ -578,6 +583,7 @@
 			var buttonBlocked = false;
 			var buttonHoldPending = false;
 			var buttonIgnoreClick = false;
+			var buttonProxyHeld = false;
 			var timeStartClick = -1;
 			var timeLastClick = -1;
 			var timeHeldDown = 0;
@@ -1023,7 +1029,9 @@
 					0, 
 					monsterParty[monsterPointer].sprite.width, 
 					monsterParty[monsterPointer].sprite.height
-				); */
+				); */				
+
+				return(true);
 			}
 
 			function personalityGenerator(monsterStats, baseValues, mutator) {
@@ -1041,8 +1049,50 @@
 
 		/* Inventory and Item functions */	
 
-			function chooseNumToUse() {
+			function chooseNumToUse() {	
+				if (buttonJustClicked == true && (invNumberToUse < invArrayFocus[invPos].quantity || invArrayFocus != inventory)) {
+					invNumberToUse++;
+				}
+				else if (isButtonFlick == true && invNumberToUse > 0) {
+					invNumberToUse--;
+				}
+				else if (isButtonHeld == true && buttonProxyHeld == true) {
+					buttonProxyHeld = false;
 
+					if (invNumberToUse == 0) {
+						invNumberToUse = 1;
+						
+						textMenuExit();
+					}
+					else {
+						return(invNumberToUse);
+					}
+				}
+
+				invTextRaw = "";
+
+				if (performance.now() - invBlinkBefore >= invBlinkTime) {
+					if (invNumberToUse <= 9) {
+						invTextRaw += " ";
+					}
+
+					if (invArrayFocus == inventory) {
+						invTextRaw += " USE~ ";
+					}
+					else {
+						invTextRaw += "MAKE ";
+					}
+
+					invTextRaw += "*" + invNumberToUse;
+
+					if (invNumberToUse == 0) {
+						invTextRaw = "~CANCEL?"
+					}
+
+					if (performance.now() - invBlinkBefore >= invBlinkTime * 2) {
+						invBlinkBefore = performance.now();
+					}
+				}				
 			}
 
 			function drawCrafting() {
@@ -1074,16 +1124,18 @@
 					6
 				);
 
-				invTextRaw = "";
-
-				if (invArrayFocus[invPos].quantity <= 9) {
-					invTextRaw = "      *" + invArrayFocus[invPos].quantity;
-				}
-				else if (invArrayFocus[invPos].quantity > 9) {
-					invTextRaw = "     *" + invArrayFocus[invPos].quantity;
-				}
-				else if (invPos > invArrayFocus.length) {
+				if (listDoRun == false) {
 					invTextRaw = "";
+
+					if (invArrayFocus[invPos].quantity <= 9) {
+						invTextRaw = "      *" + invArrayFocus[invPos].quantity;
+					}
+					else if (invArrayFocus[invPos].quantity > 9) {
+						invTextRaw = "     *" + invArrayFocus[invPos].quantity;
+					}
+					else if (invPos > invArrayFocus.length) {
+						invTextRaw = "";
+					}
 				}
 
 				drawText(
@@ -1275,7 +1327,10 @@
 			}
 
 			function textMenuCraft() {
-				textMenuExit();
+				if (chooseNumToUse() > 0) {
+					invNumberToUse = 1;
+					textMenuExit();
+				}
 			}
 
 			function textMenuDisplay() {
@@ -1323,22 +1378,35 @@
 			}
 
 			function textMenuUse() {
-				if (invArrayFocus[invPos].type == "resource" || invArrayFocus[invPos].type == "relic") {
-					chooseNumToUse();
-					chooseMonster();
+				if (invArrayFocus[invPos].type == "resource") {
+					if (chooseNumToUse() > 0) {
+						if (chooseMonster() == true) {
+							useItem(invNumberToUse);
+							takeFromInventory(invNumberToUse);
+							invNumberToUse = 1;
+
+							isTaskDone = true;
+						}
+					}
+				}
+				else if (invArrayFocus[invPos].type == "relic"){
+					isTaskDone = true;
 				}
 				else if (invArrayFocus[invPos].type == "rig") {
-
+					isTaskDone = true;
 				}
 				else if (invArrayFocus[invPos].type == "seed") {
-
+					isTaskDone = true;
+				}
+				else if (invArrayFocus[invPos].type == "dev") {
+					useItem(1);
+					isTaskDone = true;
 				}
 
-				useItem(invNumberToUse);
-				takeFromInventory(invNumberToUse);
-				invNumberToUse = 1;
-
-				textMenuExit()
+				if (isTaskDone == true) {
+					isTaskDone = false;
+					textMenuExit();
+				}
 			}
 
 			function updateMenu() {
@@ -1394,9 +1462,17 @@
 							listStart = true;
 						}
 					}		
-					else if (gameState == "textMenu") {
+					else if (gameState == "textMenu" && listDoRun == false) {
 						listDoRun = true;
 					}			
+					else if (listDoRun == true) {
+						if (buttonProxyHeld == false) {
+							buttonProxyHeld = true;
+						}
+						else if (buttonProxyHeld == true) {
+							buttonProxyHeld = false;
+						}
+					}
 
 					buttonIgnoreClick = true;
 					buttonHoldPending = true;
@@ -1418,7 +1494,7 @@
 							invPos++;
 						}
 					}
-					else if (gameState == "textMenu") {
+					else if (gameState == "textMenu" && listDoRun == false) {
 						textMenuBlankSkip()
 					}
 				}
@@ -1428,7 +1504,7 @@
 							invPos--;
 						}
 					}
-					else if (gameState == "textMenu") {
+					else if (gameState == "textMenu" && listDoRun == false) {
 						for (lbc = listPointer; (lbc > 0); lbc--) {
 							if (listArray[((lbc - 1) * 3) + 1] == true) {
 								listPointer = lbc;
