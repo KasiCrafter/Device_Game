@@ -380,10 +380,13 @@
 			];
 			var invPos = 0;
 			var invPosHolder = 0;
+			var invRecipiePos = 0;
 			var invTarget = 0;
 			var invTextRaw = "";
 			var invArrayFocus = [];
+			var invArrayHolder = [];
 			var invNumberToUse = 1;		
+			var invIsNumChosen = false;
 			var invBlinkTime = 300;
 			var invBlinkBefore = 0;
 
@@ -1061,38 +1064,67 @@
 
 					if (invNumberToUse == 0) {
 						invNumberToUse = 1;
+						invIsNumChosen = false;
 						
 						textMenuExit();
 					}
 					else {
+						invIsNumChosen = true;
+
 						return(invNumberToUse);
 					}
 				}
+				drawInvBlink();			
+			}
 
+			function drawInvBlink() {
 				invTextRaw = "";
 
 				if (performance.now() - invBlinkBefore >= invBlinkTime) {
-					if (invNumberToUse <= 9) {
+					if (invNumberToUse <= 9 && invIsNumChosen == false) {
 						invTextRaw += " ";
 					}
 
 					if (invArrayFocus == inventory) {
 						invTextRaw += " USE~ ";
 					}
-					else {
+					else if (invArrayHolder.length == 0 && invIsNumChosen == false) {
 						invTextRaw += "MAKE ";
 					}
+					else if (invIsNumChosen == true){
+						if (invArrayHolder[invPosHolder].recipieArray[(invPos * 2) + 1] <= 9) {
+							invTextRaw = "   ";
+						}
+						else if (invArrayHolder[invPosHolder].recipieArray[(invPos * 2) + 1] > 9) {
+							invTextRaw = " ";
+						}
+					}
 
-					invTextRaw += "*" + invNumberToUse;
+					if (invIsNumChosen == false) {
+						invTextRaw += "*" + invNumberToUse;
+					}
+					else {
+						invTextRaw += "*";
+
+						if (findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2]) == inventory.length) {
+							invTextRaw += "0";
+						}
+						else {
+							invTextRaw += inventory[findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2])].quantity;
+						}
+
+
+						invTextRaw += "/" + invNumberToUse * invArrayHolder[invPosHolder].recipieArray[(invPos * 2) + 1];
+					}
 
 					if (invNumberToUse == 0) {
 						invTextRaw = "~CANCEL?"
 					}
 
-					if (performance.now() - invBlinkBefore >= invBlinkTime * 2) {
+					if (performance.now() - invBlinkBefore >= invBlinkTime * 2 && invIsNumChosen == false) {
 						invBlinkBefore = performance.now();
 					}
-				}				
+				}
 			}
 
 			function drawCrafting() {
@@ -1104,12 +1136,24 @@
 				if (isCrafting == undefined) {
 					invArrayFocus = inventory;
 				}
-				else if (isCrafting == true && invArrayFocus.length == 0) {
+				else if (isCrafting == true && invArrayFocus.length == 0 && invIsNumChosen == false) {
 					for (crf = 0; crf < itemTable.length; crf++) {
 						if (itemTable[crf].isCraftable == true) {
 							invArrayFocus.push(itemTable[crf]);
 						}
-					}					
+					}										
+				}				
+				else if (isCrafting == true && invIsNumChosen == true && invArrayHolder.length == 0) {
+					invArrayHolder = invArrayFocus;
+					invArrayFocus = [];
+					invPosHolder = invPos;
+
+					for (mtl = 0; mtl < (invArrayHolder[invPosHolder].recipieArray.length / 2); mtl++) {
+						invArrayFocus.push(itemTable[invArrayHolder[invPosHolder].recipieArray[mtl * 2]]);
+					}
+
+					invPos = 0;
+					// invRecipiePos = 1; 
 				}
 
 				ctxMain.drawImage(invArrayFocus[invPos].sprite, 0, -pixelSize * 2);
@@ -1176,7 +1220,7 @@
 					}
 				} 
 		
-				return(k);
+				return(inventory.length);
 			}
 
 			function findInLootTable() {
@@ -1327,9 +1371,17 @@
 			}
 
 			function textMenuCraft() {
-				if (chooseNumToUse() > 0) {
-					invNumberToUse = 1;
-					textMenuExit();
+				if (invIsNumChosen == false) {
+					chooseNumToUse();
+				}
+				else if (invIsNumChosen == true) {	
+					drawInvBlink();
+
+					if (isTaskDone == true) {
+						invArrayFocus = invArrayHolder;
+						invNumberToUse = 1;
+						textMenuExit();
+					}
 				}
 			}
 
@@ -1359,7 +1411,7 @@
 							auxScreen, 
 							0, 
 							textHeight * listDisplayCount, 
-							7
+							8
 						);
 						
 						listDisplayCount++;
@@ -1375,6 +1427,7 @@
 				gameState = gamePrev;
 				listDoRun = false;
 				listPointer = 0;
+				invArrayHolder = [];
 			}
 
 			function textMenuUse() {
@@ -1453,6 +1506,7 @@
 					else if (gameState == "inventory") {
 						if (invPos == (invArrayFocus.length - 1)) {
 							invArrayFocus = [];
+							invArrayHolder = [];
 							gameState = "menu";						
 						}
 						else {
@@ -1489,8 +1543,11 @@
 							menuPointer = menuItems[menuPointer].referNext;
 						}	
 					}
-					else if (gameState == "inventory") {
-						if (invPos < invArrayFocus.length - 1) {
+					else if (gameState == "inventory" || invIsNumChosen == true) {
+						if (invPos < invArrayFocus.length - 1 && invIsNumChosen == false) {
+							invPos++;
+						}
+						else if (invArrayHolder.length > 0 && invPos < (invArrayHolder[invPosHolder].recipieArray.length / 2) - 1 && invIsNumChosen == true) {
 							invPos++;
 						}
 					}
@@ -1499,7 +1556,7 @@
 					}
 				}
 				else if (isButtonFlick == true) {
-					if (gameState == "inventory") {
+					if (gameState == "inventory" || invIsNumChosen == true) {
 						if (invPos > 0) {
 							invPos--;
 						}
