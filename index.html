@@ -1092,11 +1092,14 @@
 						invTextRaw += "MAKE ";
 					}
 					else if (invIsNumChosen == true){
-						if (invArrayHolder[invPosHolder].recipieArray[(invPos * 2) + 1] <= 9) {
-							invTextRaw = "   ";
+						if (invArrayHolder[invPosHolder].recipieArray[(invPos * 2) + 1] * invNumberToUse <= 9 && ((findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2]) != inventory.length && inventory[findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2])].quantity <= 9) || findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2]) == inventory.length)) {
+							invTextRaw = "   ~";
 						}
-						else if (invArrayHolder[invPosHolder].recipieArray[(invPos * 2) + 1] > 9) {
-							invTextRaw = " ";
+						else if (invArrayHolder[invPosHolder].recipieArray[(invPos * 2) + 1] * invNumberToUse > 9 && findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2]) != inventory.length && inventory[findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2])].quantity > 9) {
+							invTextRaw = "";
+						}
+						else if (invArrayHolder[invPosHolder].recipieArray[(invPos * 2) + 1] * invNumberToUse > 9 || (findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2]) != inventory.length && inventory[findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2])].quantity > 9)) {
+							invTextRaw = "  ~";
 						}
 					}
 
