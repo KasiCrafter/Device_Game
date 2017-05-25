@@ -1091,7 +1091,7 @@
 					else if (invArrayHolder.length == 0 && invIsNumChosen == false) {
 						invTextRaw += "MAKE ";
 					}
-					else if (invIsNumChosen == true){
+					else if (invIsNumChosen == true && invPos < invArrayFocus.length - 1){
 						if (invArrayHolder[invPosHolder].recipieArray[(invPos * 2) + 1] * invNumberToUse <= 9 && ((findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2]) != inventory.length && inventory[findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2])].quantity <= 9) || findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2]) == inventory.length)) {
 							invTextRaw = "   ~";
 						}
@@ -1106,7 +1106,7 @@
 					if (invIsNumChosen == false) {
 						invTextRaw += "*" + invNumberToUse;
 					}
-					else {
+					else if (invPos < invArrayFocus.length - 1) {
 						invTextRaw += "*";
 
 						if (findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2]) == inventory.length) {
@@ -1154,6 +1154,8 @@
 					for (mtl = 0; mtl < (invArrayHolder[invPosHolder].recipieArray.length / 2); mtl++) {
 						invArrayFocus.push(itemTable[invArrayHolder[invPosHolder].recipieArray[mtl * 2]]);
 					}
+
+					invArrayFocus.push(itemTable[5]);
 
 					invPos = 0;
 					// invRecipiePos = 1; 
@@ -1380,7 +1382,7 @@
 				else if (invIsNumChosen == true) {	
 					drawInvBlink();
 
-					if (isTaskDone == true) {
+					if (isTaskDone == true || (buttonProxyHeld == true && invPos == invArrayFocus.length - 1)) {
 						invArrayFocus = invArrayHolder;
 						invNumberToUse = 1;
 						textMenuExit();
@@ -1430,7 +1432,10 @@
 				gameState = gamePrev;
 				listDoRun = false;
 				listPointer = 0;
+				invIsNumChosen = false;
 				invArrayHolder = [];
+				invPos = invPosHolder;
+				invPosHolder = 0;				
 			}
 
 			function textMenuUse() {
@@ -1550,7 +1555,7 @@
 						if (invPos < invArrayFocus.length - 1 && invIsNumChosen == false) {
 							invPos++;
 						}
-						else if (invArrayHolder.length > 0 && invPos < (invArrayHolder[invPosHolder].recipieArray.length / 2) - 1 && invIsNumChosen == true) {
+						else if (invArrayHolder.length > 0 && invPos < (invArrayHolder[invPosHolder].recipieArray.length / 2) && invIsNumChosen == true) {
 							invPos++;
 						}
 					}
