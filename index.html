@@ -1063,10 +1063,12 @@
 					buttonProxyHeld = false;
 
 					if (invNumberToUse == 0) {
-						invNumberToUse = 1;
-						invIsNumChosen = false;
-						
-						textMenuExit();
+						if (invArrayHolder.length == 0) {
+							textMenuExit(true);
+						}
+						else {
+							textMenuExit();
+						}
 					}
 					else {
 						invIsNumChosen = true;
@@ -1428,14 +1430,20 @@
 				}
 			}
 
-			function textMenuExit() {
+			function textMenuExit(doKeepPos) {
 				gameState = gamePrev;
+
 				listDoRun = false;
 				listPointer = 0;
+
 				invIsNumChosen = false;
-				invArrayHolder = [];
-				invPos = invPosHolder;
-				invPosHolder = 0;				
+				invArrayHolder = [];				
+				invNumberToUse = 1;	
+				if (doKeepPos == undefined) {
+					invPos = invPosHolder;
+				}	
+
+				buttonProxyHeld = false;
 			}
 
 			function textMenuUse() {
@@ -1444,7 +1452,6 @@
 						if (chooseMonster() == true) {
 							useItem(invNumberToUse);
 							takeFromInventory(invNumberToUse);
-							invNumberToUse = 1;
 
 							isTaskDone = true;
 						}
@@ -1466,7 +1473,8 @@
 
 				if (isTaskDone == true) {
 					isTaskDone = false;
-					textMenuExit();
+
+					textMenuExit(true);
 				}
 			}
 
