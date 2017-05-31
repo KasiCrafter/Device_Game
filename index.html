@@ -510,7 +510,7 @@
 			var textHeight = 24;
 			var textParser = [
 				{character : " ", sheetRow : 7, sheetColumn : 0, widthModify : -8},
-				{character : "~", sheetRow : 8, sheetColumn : 0, widthModify : -12},
+				{character : "~", sheetRow : 7, sheetColumn : 0, widthModify : -12},
 				{character : ".", sheetRow : 1, sheetColumn : 5, widthModify : -8},
 				{character : "_", sheetRow : 0, sheetColumn : 6, widthModify : -4},
 				{character : ";", sheetRow : 1, sheetColumn : 6, widthModify : -12},
@@ -761,7 +761,7 @@
 				context.drawImage(image3, 0, 0);
 			}
 
-			function drawText(transcribe, textType, context, screen, addX, addY, id) {
+			function drawText(transcribe, textType, alignType, context, screen, addX, addY, id) {
 				transcribe = transcribe.toUpperCase();
 				transcribe = transcribe.split("");
 
@@ -774,7 +774,7 @@
 				var wordLength = 0;
 				var prevSpaceIndex = 0;
 				var breakTracker = [];
-				var maxLength =  auxScreen.width;
+				var maxLength =  screen.width;
 				
 
 
@@ -830,7 +830,7 @@
 						characterWidth = 16;
 					}
 
-					if (lineLength + characterWidth > maxLength && screen == auxScreen) {  
+					if (lineLength + characterWidth > maxLength && (screen == auxScreen || alignType == "center")) {  
 						if (wordLength + characterWidth < maxLength) {  
 							breakTracker.push(prevSpaceIndex);
 						
@@ -857,51 +857,103 @@
 						lineLength += characterWidth;
 					}
 				}
-
-				if (screen == auxScreen) {
-					textQueue[q].textMaxCrawl = (breakTracker.length + 1) * textHeight + addY - 
-					textQueue[q].textVisableCrawl;
-				}
-				else if (screen == mainScreen) {					
-					textQueue[q].textMaxCrawl = lineLength + addX - textQueue[q].textVisableCrawl;
-
-					/* if (textSyncMaxCrawl < textQueue[q].textMaxCrawl) {
-						textSyncMaxCrawl = textQueue[q].textMaxCrawl;
+				if (alignType == "normal") {
+					if (screen == auxScreen) {
+						textQueue[q].textMaxCrawl = (breakTracker.length + 1) * textHeight + addY - 
+						textQueue[q].textVisableCrawl;
 					}
-					else if (textSyncMaxCrawl > textQueue[q].textMaxCrawl) {
-						textQueue[q].textMaxCrawl = textSyncMaxCrawl;
-					} */
-				}				
+					else if (screen == mainScreen) {					
+						textQueue[q].textMaxCrawl = lineLength + addX - textQueue[q].textVisableCrawl;
+
+						/* if (textSyncMaxCrawl < textQueue[q].textMaxCrawl) {
+							textSyncMaxCrawl = textQueue[q].textMaxCrawl;
+						}
+						else if (textSyncMaxCrawl > textQueue[q].textMaxCrawl) {
+							textQueue[q].textMaxCrawl = textSyncMaxCrawl;
+						} */
+					}				
 
 
-				textTimeNow = performance.now();
-				textTimeCount = textTimeNow - textQueue[q].textTimeLast;
+					textTimeNow = performance.now();
+					textTimeCount = textTimeNow - textQueue[q].textTimeLast;
 
-				if (textTimeCount >= textStartCrawl && textQueue[q].textIsCrawl == false && 
-				textQueue[q].textCrawlPosition == 0 && (breakTracker.length + 1 > 3 || 
-				(screen == mainScreen && lineLength > maxLength))){
-					textQueue[q].textIsCrawl = true;
-				}			
-				else if (textQueue[q].textCrawlPosition >= textQueue[q].textMaxCrawl && textTimeCount >= textStartCrawl) {
-					textQueue[q].textTimeLast = performance.now();
+					if (textTimeCount >= textStartCrawl && textQueue[q].textIsCrawl == false && 
+					textQueue[q].textCrawlPosition == 0 && (breakTracker.length + 1 > 3 || 
+					(screen == mainScreen && lineLength > maxLength))){
+						textQueue[q].textIsCrawl = true;
+					}			
+					else if (textQueue[q].textCrawlPosition >= textQueue[q].textMaxCrawl && textTimeCount >= textStartCrawl) {
+						textQueue[q].textTimeLast = performance.now();
 
-					textQueue[q].textCrawlCount = 0;
-					textQueue[q].textCrawlPosition = 0;
-				}
+						textQueue[q].textCrawlCount = 0;
+						textQueue[q].textCrawlPosition = 0;
+					}
 
-				if (textQueue[q].textIsCrawl == true && textTimeCount >= textNextCrawl) {
-					textQueue[q].textTimeLast = performance.now();
+					if (textQueue[q].textIsCrawl == true && textTimeCount >= textNextCrawl) {
+						textQueue[q].textTimeLast = performance.now();
 
-					textQueue[q].textCrawlCount++;
-					textQueue[q].textCrawlPosition = textQueue[q].textCrawlCount * textScrollSpeed;
+						textQueue[q].textCrawlCount++;
+						textQueue[q].textCrawlPosition = textQueue[q].textCrawlCount * textScrollSpeed;
 
-					if (textQueue[q].textCrawlPosition >= textQueue[q].textMaxCrawl) {
-						textQueue[q].textIsCrawl = false;
+						if (textQueue[q].textCrawlPosition >= textQueue[q].textMaxCrawl) {
+							textQueue[q].textIsCrawl = false;
+						}
+					}
+
+					if (screen == mainScreen){
+						pointerX = -textQueue[q].textCrawlPosition + addX;
 					}
 				}
+				else if (alignType == "center") {
+					var centerPos = (screen.width - lineLength + pixelSize) / 2;
 
-				if (screen == mainScreen){
-					pointerX = -textQueue[q].textCrawlPosition + addX;
+					if ((centerPos / 2) % 2 != 0) {
+						for (ctr = 0; ctr < transcribe.length; ctr++) {
+							centerPos = Math.floor(centerPos);
+
+							if (transcribe[ctr] == " ") {
+								transcribe.splice(ctr, 0, "~");
+
+								ctr++;
+
+								if (textType == textOnBlack) {
+									transcribe.push("~");
+								}
+								
+							}
+
+							/* if (ctr == transcribe.length - 1 && transcribe[ctr] != " ") {
+								transcribe.splice(0, 0, "~");
+
+								ctr++;
+							} */
+						}
+					}
+
+					while (centerPos > 0) {
+						if (centerPos >= textWidth + textParser[0].widthModify) {
+							transcribe.splice(0, 0, " ");
+
+							if (textType == textOnBlack) {
+								transcribe.push(" ");
+							}
+
+							centerPos -= textWidth + textParser[0].widthModify;
+						}
+						else if (centerPos >= textWidth + textParser[1].widthModify) {
+							transcribe.splice(0, 0, "~");
+
+							if (textType == textOnBlack) {
+								transcribe.push("~");
+							}
+
+							centerPos -= textWidth + textParser[1].widthModify;
+						}
+
+						else {
+							break;
+						}
+					}
 				}
 
 				for (i = 0; i < transcribe.length; i++) {				
@@ -1059,15 +1111,15 @@
 				else if (isButtonFlick == true && invNumberToUse > 0) {
 					invNumberToUse--;
 				}
-				else if (isButtonHeld == true && buttonProxyHeld == true) {
+				else if (buttonProxyHeld == true) {
 					buttonProxyHeld = false;
 
 					if (invNumberToUse == 0) {
 						if (invArrayHolder.length == 0) {
-							textMenuExit(true);
+							textMenuExit();
 						}
 						else {
-							textMenuExit();
+							textMenuExit(true);
 						}
 					}
 					else {
@@ -1083,16 +1135,17 @@
 				invTextRaw = "";
 
 				if (performance.now() - invBlinkBefore >= invBlinkTime) {
-					if (invNumberToUse <= 9 && invIsNumChosen == false) {
+					/* if (invNumberToUse <= 9 && invIsNumChosen == false) {
 						invTextRaw += " ";
-					}
+					} */
 
 					if (invArrayFocus == inventory) {
-						invTextRaw += " USE~ ";
+						invTextRaw += "USE ";
 					}
 					else if (invArrayHolder.length == 0 && invIsNumChosen == false) {
 						invTextRaw += "MAKE ";
 					}
+					/*
 					else if (invIsNumChosen == true && invPos < invArrayFocus.length - 1){
 						if (invArrayHolder[invPosHolder].recipieArray[(invPos * 2) + 1] * invNumberToUse <= 9 && ((findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2]) != inventory.length && inventory[findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2])].quantity <= 9) || findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2]) == inventory.length)) {
 							invTextRaw = "   ~";
@@ -1102,8 +1155,8 @@
 						}
 						else if (invArrayHolder[invPosHolder].recipieArray[(invPos * 2) + 1] * invNumberToUse > 9 || (findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2]) != inventory.length && inventory[findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2])].quantity > 9)) {
 							invTextRaw = "  ~";
-						}
-					}
+						} 
+					} */
 
 					if (invIsNumChosen == false) {
 						invTextRaw += "*" + invNumberToUse;
@@ -1123,7 +1176,7 @@
 					}
 
 					if (invNumberToUse == 0) {
-						invTextRaw = "~CANCEL?"
+						invTextRaw = "CANCEL?"
 					}
 
 					if (performance.now() - invBlinkBefore >= invBlinkTime * 2 && invIsNumChosen == false) {
@@ -1168,6 +1221,7 @@
 				drawText(
 					invArrayFocus[invPos].name, 
 					textOnBlack, 
+					"normal",
 					ctxMain, 
 					mainScreen, 
 					0, 
@@ -1176,22 +1230,19 @@
 				);
 
 				if (listDoRun == false) {
-					invTextRaw = "";
-
-					if (invArrayFocus[invPos].quantity <= 9) {
-						invTextRaw = "      *" + invArrayFocus[invPos].quantity;
+					if (typeof(invArrayFocus[invPos].quantity) == "number") {
+						invTextRaw = "*" + invArrayFocus[invPos].quantity;
 					}
-					else if (invArrayFocus[invPos].quantity > 9) {
-						invTextRaw = "     *" + invArrayFocus[invPos].quantity;
-					}
-					else if (invPos > invArrayFocus.length) {
+					else {
 						invTextRaw = "";
 					}
+
 				}
 
 				drawText(
 					invTextRaw, 
 					textOnWhite, 
+					"center",
 					ctxMain, 
 					mainScreen, 
 					0, 
@@ -1297,7 +1348,7 @@
 			function drawMenu() {
 				ctxMain.drawImage(menuItems[menuPointer].sprite, 0, 0);
 				textAux = menuItems[menuPointer].description;
-				drawText(menuItems[menuPointer].title, textOnWhite, ctxMain, mainScreen, 0, mainScreen.height - textHeight, 1);
+				drawText(menuItems[menuPointer].title, textOnWhite, "normal", ctxMain, mainScreen, 0, mainScreen.height - textHeight, 1);
 
 				menuAnchor = menuIndexStack[menuIndexStack.length - 1];
 				menuMiddle = mainScreen.height - textHeight - pixelSize - squareIcon1.height;
@@ -1387,7 +1438,7 @@
 					if (isTaskDone == true || (buttonProxyHeld == true && invPos == invArrayFocus.length - 1)) {
 						invArrayFocus = invArrayHolder;
 						invNumberToUse = 1;
-						textMenuExit();
+						textMenuExit(true);
 					}
 				}
 			}
@@ -1414,6 +1465,7 @@
 						drawText(
 							listArray[tm], 
 							listTextColor, 
+							"normal",
 							ctxAux, 
 							auxScreen, 
 							0, 
@@ -1430,7 +1482,7 @@
 				}
 			}
 
-			function textMenuExit(doKeepPos) {
+			function textMenuExit(resetPos) {
 				gameState = gamePrev;
 
 				listDoRun = false;
@@ -1439,7 +1491,7 @@
 				invIsNumChosen = false;
 				invArrayHolder = [];				
 				invNumberToUse = 1;	
-				if (doKeepPos == undefined) {
+				if (resetPos == true) {
 					invPos = invPosHolder;
 				}	
 
@@ -1474,7 +1526,7 @@
 				if (isTaskDone == true) {
 					isTaskDone = false;
 
-					textMenuExit(true);
+					textMenuExit();
 				}
 			}
 
@@ -1776,18 +1828,18 @@
 				ctxAux.clearRect(0, 0, auxScreen.width, auxScreen.height);
 
 				drawBackground(ctxAux);
-				drawText(textAux, textOnWhite, ctxAux, auxScreen, 0, 0, 2);
+				drawText(textAux, textOnWhite, "normal", ctxAux, auxScreen, 0, 0, 2);
 				drawGrid(ctxAux);
 
 				/* "THE QUICK, BROWN FOX JUMPED OVER THE LAZY DOG." */
 			}
 
 			function drawCoins() {
-				drawText("COINS     ", textOnBlack, ctxAux, auxScreen, 0, 0, 3);
-				drawText(coinsCurrent.toString(), textOnWhite, ctxAux, auxScreen, 0, textHeight + pixelSize, 4);
+				drawText("COINS", textOnBlack, "center", ctxAux, auxScreen, 0, 0, 3);
+				drawText(coinsCurrent.toString(), textOnWhite, "center", ctxAux, auxScreen, 0, textHeight + pixelSize, 4);
 
 				if (coinsSubtracting > 0) {
-					drawText(coinsSubtracting.toString(), textOnWhite, ctxAux, auxScreen, 0, textHeight * 2 + pixelSize, 5);
+					drawText(coinsSubtracting.toString(), textOnWhite, "normal", ctxAux, auxScreen, 0, textHeight * 2 + pixelSize, 5);
 				}
 
 			}
