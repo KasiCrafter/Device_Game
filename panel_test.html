@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Panel Tests</title>
+</head>
+<meta charset="UTF-8">
+<style>
+		body {
+			background-color: black;
+			 min-height: 100%;
+		}
+		html{
+  height: 100%;
+}
+
+</style>
+<body>
+	<script type="text/javascript">
+		var body = document.getElementsByTagName("body")[0];
+		var panel  = document.createElement("canvas");
+		panel.width = 200;
+		panel.height = 100;
+		var isHeldClick = false;
+		panel.style.position = "relative";
+
+		body.width = window.outerWidth;
+		body.height = window.outerHeight;
+
+		var ctx = panel.getContext("2d");
+		ctx.fillStyle = "#FFFFFF";
+		ctx.fillRect(0, 0, panel.width, panel.height);
+		body.appendChild(panel);
+
+		var initClickX = 0;
+		var	initClickY = 0;
+
+		body.addEventListener("mouseleave", mouseLeaveHandler, false);
+		panel.addEventListener("mouseup", mouseUpHandler, false);
+		panel.addEventListener("mousedown", mouseDownHandler, false);
+		body.addEventListener("mousemove", mouseMoveHandler, false);
+		//body.addEventListener("onresize", resizeHandler, false);
+
+
+
+	function mouseDownHandler(event2) {
+				isHeldClick = true;
+				initClickX = event2.offsetX;
+				initClickY = event2.offsetY;
+
+
+				//ctxPlay.fillText(isHeldClick.toString(), pointerX, pointerY + 50);
+			}
+
+	function mouseMoveHandler(event){
+		if (isHeldClick) {
+
+			panel.style.margin = (event.clientY - initClickY) + "px " + "0px 0px "+ (event.clientX - initClickX) + "px";
+
+			console.log(event.clientX + ", " + event.clientY);
+			//panel.xPos = event.offsetX;
+			//panel.yPos = event.offsetY;
+		}
+
+	}
+
+
+	function mouseEnterHandler() {
+
+	}
+
+	function mouseLeaveHandler() {
+		mouseUpHandler();
+	}
+
+	function mouseUpHandler() {
+		//pointerX = event2.offsetX;
+		//pointerY = event2.offsetY;
+		pointerX = -1;
+		pointerY = -1;
+		//ignoreClick = false;
+		isHeldClick = false;
+		initClickY = 0;
+		initClickX = 0;
+		//ctxPlay.fillText(isHeldClick.toString(), pointerX, pointerY + 50);
+	}
+
+
+
+
+	</script>
+</body>
+</html>
