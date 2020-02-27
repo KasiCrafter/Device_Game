@@ -44,6 +44,7 @@
 			<img id="unselectedX" src="images/UnselectedXMenuIcon.png" width="20" height="12">
 			<img id="selectedX" src="images/SelectedXMenuIcon.png" width="20" height="12">
 
+			<!-- <img id="itemGlow" src=> -->
 			<img id="items" src="images/ItemsMenuIcon.png" width="120" height="100">
 			<img id="herb1" src="images/Supply1Placeholder.png" width="120" height="100">
 			<img id="rod1" src="images/Supply2Placeholder.png" width="120" height="100">
@@ -60,6 +61,7 @@
 			var gameState = "idle";
 			var gamePrev = "";
 			var pixelSize = 4;
+			var isTaskDone = false;
 
 			var blah = document.getElementById("environment");
 
@@ -92,15 +94,34 @@
 			var animationQueue = [];
 			var animationIsRecord = true;
 
-			function AnimationObject (sprite, coordX, coordY, ctx, screen, input, f1, d1, q1, w1, e1, c1, o1, f2, d2, q2, w2, e2, c2, o2,  f3, d3, q3, w3, e3, c3, o3, f4, d4, q4, w4, e4, c4, o4, f5, d5, q5, w5, e5, c5, o5, f6, d6, q6, w6, e6, c6, o6) {
+			function AnimationObject (sprite, coordX, coordY, ctx, screen, miscData) {						
+						/*	
+							int,	  			X coord 
+							int,				Y coord 
+							ctxMain,    		context/cxt 
+							mainScreen,  		screen 
+							buttonJustClicked,  miscData 
+
+							func name,  		function 
+							milliseconds,		delay 
+							int,				queue pos
+							[false, millisecs],	do When 
+							[0, millisecs], 	do Every
+							[int1, int2...], 	do Chain 
+							int, 				do Once  
+						*/
+
+
 				this.sprite = sprite;
 				this.coordX = coordX;
 				this.coordY = coordY;
 				this.ctx = ctx;
 				this.screen = screen;
-				this.input = input;
+				this.miscData = miscData;
 				this.functionData = -1;
 				this.argsCheck = 0;
+				this.functionArray = [];
+
 				
 				if (arguments.length == 13) {
 					this.argsCheck = 1;
@@ -121,7 +142,25 @@
 					this.argsCheck = -1;
 				}
 
-				this.functionArray = [
+				for (anm = 6; anm < arguments.length - 6; anm += 7) {
+					this.functionArray.push(
+						{
+							function : arguments[anm],
+							delay : arguments[anm + 1],
+							isDone: false,
+							queuePos : arguments[anm + 2],
+							timeLast : performance.now(),
+							doWhen : arguments[anm + 3],
+							doEvery : arguments[anm + 4],
+							doChain : arguments[anm + 5],
+							doOnce : arguments[anm + 6]
+						}
+					);
+				}
+
+
+
+				/* this.functionArray = [
 					{
 						function : f1,
 						delay: d1,
@@ -208,7 +247,7 @@
 
 				if (f6 == undefined) {
 					this.functionArray[5].isDone = true;
-				}
+				} */
 			}
 
 			var listPointer = 0;
@@ -259,7 +298,7 @@
 				{	
 					title : "ITEMS",
 					sprite : items,
-					description : "MANAGE AND USE YOUR GEAR.",
+					description : "MANAGE AND USE ALL YOUR GEAR.",
 					referNext : 0,
 					referEnter : 4,
 					isDisplayed : true
@@ -267,7 +306,7 @@
 				{	
 					title : "LOOT",
 					sprite : minigameIcon,
-					description : "EXAMINE YOUR LOOT.",
+					description : "EXAMINE YOUR ITEMS.",
 					referNext : 5,
 					referEnter : drawItems,
 					isDisplayed : true
@@ -275,7 +314,7 @@
 				{	
 					title : "CRAFT",
 					sprite : strobeIcon,
-					description : "REFINE AND MAKE NEW ITEMS.",
+					description : "REFINE AND MAKE NEW LOOT.",
 					referNext : 0,
 					referEnter : drawCrafting,
 					isDisplayed : true
@@ -374,14 +413,21 @@
 			}
 
 			var inventory = [
-				new ItemObject("REPLICATE", "?", herb1, "HOLD BUTTON FOR DUPE.", "rigging",[testAdd]),
+				new ItemObject("REPLICATE", "?", herb1, "HOLD BUTTON FOR DUPE.", "dev",[testAdd]),
 				new ItemObject("    EXIT       EXIT       EXIT       EXIT   ","X", herb1,"HOLD BUTTON TO EXIT MENU.", "dev",[])			
 			];
 			var invPos = 0;
+			var invPosHolder = 0;
+			var invRecipiePos = 0;
 			var invTarget = 0;
 			var invTextRaw = "";
 			var invArrayFocus = [];
-			var invNumberToUse = 1;
+			var invArrayHolder = [];
+			var invNumberToUse = 1;		
+			var invIsNumChosen = false;
+			var invBlinkTime = 300;
+			var invBlinkBefore = 0;
+
 
 			var itemTable = [
 				new ItemObject(
@@ -502,7 +548,7 @@
 			var textHeight = 24;
 			var textParser = [
 				{character : " ", sheetRow : 7, sheetColumn : 0, widthModify : -8},
-				{character : "~", sheetRow : 8, sheetColumn : 0, widthModify : -12},
+				{character : "~", sheetRow : 7, sheetColumn : 0, widthModify : -12},
 				{character : ".", sheetRow : 1, sheetColumn : 5, widthModify : -8},
 				{character : "_", sheetRow : 0, sheetColumn : 6, widthModify : -4},
 				{character : ";", sheetRow : 1, sheetColumn : 6, widthModify : -12},
@@ -578,6 +624,7 @@
 			var buttonBlocked = false;
 			var buttonHoldPending = false;
 			var buttonIgnoreClick = false;
+			var buttonProxyHeld = false;
 			var timeStartClick = -1;
 			var timeLastClick = -1;
 			var timeHeldDown = 0;
@@ -736,6 +783,22 @@
 				}
 			}
 
+			function animateNextFrame(ctx, screen, sprite, coordX, coordY, spriteArray) {
+				for (frm = 0; frm < spriteArray.length; frm++) {
+					if (spriteArray[frm] == sprite) {
+						animationQueue[a].sprite = spriteArray[frm + 1];
+						break;
+					}
+				}
+			}
+
+			function animateTranslate(ctx, screen, sprite, coordX, coordY, deltaXYArray){
+				this.coordX = coordX;
+				this.coordY = coordY;
+
+				return([(this.coordX + deltaXYArray[0]), (this.coordY + deltaXYArray[1])]);
+			}
+
 			function drawBackground (context) {
 				context.drawImage(image, 0, 0);
 
@@ -752,7 +815,7 @@
 				context.drawImage(image3, 0, 0);
 			}
 
-			function drawText(transcribe, textType, context, screen, addX, addY, id) {
+			function drawText(transcribe, textType, alignType, context, screen, addX, addY, id) {
 				transcribe = transcribe.toUpperCase();
 				transcribe = transcribe.split("");
 
@@ -765,7 +828,7 @@
 				var wordLength = 0;
 				var prevSpaceIndex = 0;
 				var breakTracker = [];
-				var maxLength =  auxScreen.width;
+				var maxLength =  screen.width;
 				
 
 
@@ -821,7 +884,7 @@
 						characterWidth = 16;
 					}
 
-					if (lineLength + characterWidth > maxLength && screen == auxScreen) {  
+					if (lineLength + characterWidth > maxLength && (screen == auxScreen || alignType == "center")) {  
 						if (wordLength + characterWidth < maxLength) {  
 							breakTracker.push(prevSpaceIndex);
 						
@@ -848,51 +911,103 @@
 						lineLength += characterWidth;
 					}
 				}
-
-				if (screen == auxScreen) {
-					textQueue[q].textMaxCrawl = (breakTracker.length + 1) * textHeight + addY - 
-					textQueue[q].textVisableCrawl;
-				}
-				else if (screen == mainScreen) {					
-					textQueue[q].textMaxCrawl = lineLength + addX - textQueue[q].textVisableCrawl;
-
-					/* if (textSyncMaxCrawl < textQueue[q].textMaxCrawl) {
-						textSyncMaxCrawl = textQueue[q].textMaxCrawl;
+				if (alignType == "normal") {
+					if (screen == auxScreen) {
+						textQueue[q].textMaxCrawl = (breakTracker.length + 1) * textHeight + addY - 
+						textQueue[q].textVisableCrawl;
 					}
-					else if (textSyncMaxCrawl > textQueue[q].textMaxCrawl) {
-						textQueue[q].textMaxCrawl = textSyncMaxCrawl;
-					} */
-				}				
+					else if (screen == mainScreen) {					
+						textQueue[q].textMaxCrawl = lineLength + addX - textQueue[q].textVisableCrawl;
+
+						/* if (textSyncMaxCrawl < textQueue[q].textMaxCrawl) {
+							textSyncMaxCrawl = textQueue[q].textMaxCrawl;
+						}
+						else if (textSyncMaxCrawl > textQueue[q].textMaxCrawl) {
+							textQueue[q].textMaxCrawl = textSyncMaxCrawl;
+						} */
+					}				
 
 
-				textTimeNow = performance.now();
-				textTimeCount = textTimeNow - textQueue[q].textTimeLast;
+					textTimeNow = performance.now();
+					textTimeCount = textTimeNow - textQueue[q].textTimeLast;
 
-				if (textTimeCount >= textStartCrawl && textQueue[q].textIsCrawl == false && 
-				textQueue[q].textCrawlPosition == 0 && (breakTracker.length + 1 > 3 || 
-				(screen == mainScreen && lineLength > maxLength))){
-					textQueue[q].textIsCrawl = true;
-				}			
-				else if (textQueue[q].textCrawlPosition >= textQueue[q].textMaxCrawl && textTimeCount >= textStartCrawl) {
-					textQueue[q].textTimeLast = performance.now();
+					if (textTimeCount >= textStartCrawl && textQueue[q].textIsCrawl == false && 
+					textQueue[q].textCrawlPosition == 0 && (breakTracker.length + 1 > (screen.height / textHeight) || 
+					(screen == mainScreen && lineLength > maxLength))){
+						textQueue[q].textIsCrawl = true;
+					}			
+					else if (textQueue[q].textCrawlPosition >= textQueue[q].textMaxCrawl && textTimeCount >= textStartCrawl) {
+						textQueue[q].textTimeLast = performance.now();
 
-					textQueue[q].textCrawlCount = 0;
-					textQueue[q].textCrawlPosition = 0;
-				}
+						textQueue[q].textCrawlCount = 0;
+						textQueue[q].textCrawlPosition = 0;
+					}
 
-				if (textQueue[q].textIsCrawl == true && textTimeCount >= textNextCrawl) {
-					textQueue[q].textTimeLast = performance.now();
+					if (textQueue[q].textIsCrawl == true && textTimeCount >= textNextCrawl) {
+						textQueue[q].textTimeLast = performance.now();
 
-					textQueue[q].textCrawlCount++;
-					textQueue[q].textCrawlPosition = textQueue[q].textCrawlCount * textScrollSpeed;
+						textQueue[q].textCrawlCount++;
+						textQueue[q].textCrawlPosition = textQueue[q].textCrawlCount * textScrollSpeed;
 
-					if (textQueue[q].textCrawlPosition >= textQueue[q].textMaxCrawl) {
-						textQueue[q].textIsCrawl = false;
+						if (textQueue[q].textCrawlPosition >= textQueue[q].textMaxCrawl) {
+							textQueue[q].textIsCrawl = false;
+						}
+					}
+
+					if (screen == mainScreen){
+						pointerX = -textQueue[q].textCrawlPosition + addX;
 					}
 				}
+				else if (alignType == "center") {
+					var centerPos = (screen.width - lineLength + pixelSize) / 2;
 
-				if (screen == mainScreen){
-					pointerX = -textQueue[q].textCrawlPosition + addX;
+					if ((centerPos / 2) % 2 != 0) {
+						for (ctr = 0; ctr < transcribe.length; ctr++) {
+							centerPos = Math.floor(centerPos);
+
+							if (transcribe[ctr] == " ") {
+								transcribe.splice(ctr, 0, "~");
+
+								ctr++;
+
+								if (textType == textOnBlack) {
+									transcribe.push("~");
+								}
+								
+							}
+
+							/* if (ctr == transcribe.length - 1 && transcribe[ctr] != " ") {
+								transcribe.splice(0, 0, "~");
+
+								ctr++;
+							} */
+						}
+					}
+
+					while (centerPos > 0) {
+						if (centerPos >= textWidth + textParser[0].widthModify) {
+							transcribe.splice(0, 0, " ");
+
+							if (textType == textOnBlack) {
+								transcribe.push(" ");
+							}
+
+							centerPos -= textWidth + textParser[0].widthModify;
+						}
+						else if (centerPos >= textWidth + textParser[1].widthModify) {
+							transcribe.splice(0, 0, "~");
+
+							if (textType == textOnBlack) {
+								transcribe.push("~");
+							}
+
+							centerPos -= textWidth + textParser[1].widthModify;
+						}
+
+						else {
+							break;
+						}
+					}
 				}
 
 				for (i = 0; i < transcribe.length; i++) {				
@@ -1023,7 +1138,9 @@
 					0, 
 					monsterParty[monsterPointer].sprite.width, 
 					monsterParty[monsterPointer].sprite.height
-				); */
+				); */				
+
+				return(true);
 			}
 
 			function personalityGenerator(monsterStats, baseValues, mutator) {
@@ -1041,8 +1158,126 @@
 
 		/* Inventory and Item functions */	
 
-			function chooseNumToUse() {
+			function animateItemCraft() {
+				if (animationIsRecord == true) {
+					animationQueue.push(
+						new AnimationObject(
+								invArrayFocus[invPos].sprite,
+								0,	  /* X coord */
+								(mainScreen.height / 2) - invArrayFocus[invPos].sprite.height,	  /* Y coord  */
+								ctxMain,  /*  context/cxt  */
+								mainScreen,  /* screen */
+								buttonJustClicked,   /* miscData */
 
+								animateNextFrame,
+								400,		   			/* delay  */
+								0,	 					/* queue pos  */
+								[false, Infinity],		/* do When  */
+								[-1, Infinity],		 	/* do Every */
+								[500, 1000,1500,2500,4500,6000, 6500],	   /*  do Chain */
+								-1	 					/* do Once  */
+							),
+
+							new AnimationObject(
+								invArrayFocus[invPos].sprite,
+								0,	  /* X coord */
+								0,	  /* Y coord  */
+								ctxMain,  /*  context/cxt  */
+								mainScreen,  /* screen */
+								buttonJustClicked,   /* miscData */
+
+
+								animateTranslate,
+								0,             			/* delay */
+								0,						/* queue pos */
+								[false, Infinity],     	/* do When */
+								[100, (screen.height / 2)],			/* do Every */
+								[],						/* do Chain */
+								-1						/* do Once */
+							)
+					);
+				}
+			} 
+
+			function chooseNumToUse() {	
+				if (buttonJustClicked == true && (invNumberToUse < invArrayFocus[invPos].quantity || invArrayFocus != inventory)) {
+					invNumberToUse++;
+				}
+				else if (isButtonFlick == true && invNumberToUse > 0) {
+					invNumberToUse--;
+				}
+				else if (buttonProxyHeld == true) {
+					buttonProxyHeld = false;
+
+					if (invNumberToUse == 0) {
+						if (invArrayHolder.length == 0) {
+							textMenuExit();
+						}
+						else {
+							textMenuExit(true);
+						}
+					}
+					else {
+						invIsNumChosen = true;
+
+						return(invNumberToUse);
+					}
+				}
+				drawInvBlink();			
+			}
+
+			function drawInvBlink() {
+				invTextRaw = "";
+
+				if (performance.now() - invBlinkBefore >= invBlinkTime) {
+					/* if (invNumberToUse <= 9 && invIsNumChosen == false) {
+						invTextRaw += " ";
+					} */
+
+					if (invArrayFocus == inventory) {
+						invTextRaw += "USE ";
+					}
+					else if (invArrayHolder.length == 0 && invIsNumChosen == false) {
+						invTextRaw += "MAKE ";
+					}
+					/*
+					else if (invIsNumChosen == true && invPos < invArrayFocus.length - 1){
+						if (invArrayHolder[invPosHolder].recipieArray[(invPos * 2) + 1] * invNumberToUse <= 9 && ((findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2]) != inventory.length && inventory[findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2])].quantity <= 9) || findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2]) == inventory.length)) {
+							invTextRaw = "   ~";
+						}
+						else if (invArrayHolder[invPosHolder].recipieArray[(invPos * 2) + 1] * invNumberToUse > 9 && findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2]) != inventory.length && inventory[findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2])].quantity > 9) {
+							invTextRaw = "";
+						}
+						else if (invArrayHolder[invPosHolder].recipieArray[(invPos * 2) + 1] * invNumberToUse > 9 || (findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2]) != inventory.length && inventory[findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2])].quantity > 9)) {
+							invTextRaw = "  ~";
+						} 
+					} */
+
+					if (invIsNumChosen == false) {
+						invTextRaw += "*" + invNumberToUse;
+					}
+					else if (invPos < invArrayFocus.length - 1) {
+						invTextRaw += "*";
+
+						if (findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2]) == inventory.length) {
+							invTextRaw += "0";
+						}
+						else {
+							invTextRaw += inventory[findInInventory(invArrayHolder[invPosHolder].recipieArray[invPos * 2])].quantity;
+						}
+
+
+						invTextRaw += "/" + invNumberToUse * invArrayHolder[invPosHolder].recipieArray[(invPos * 2) + 1];
+					}
+
+					if (invNumberToUse == 0) {
+						invTextRaw = "CANCEL?"
+					}
+
+					if (performance.now() - invBlinkBefore >= invBlinkTime * 2 && invIsNumChosen == false) {
+						invBlinkBefore = performance.now();
+					}
+				}
 			}
 
 			function drawCrafting() {
@@ -1054,12 +1289,26 @@
 				if (isCrafting == undefined) {
 					invArrayFocus = inventory;
 				}
-				else if (isCrafting == true && invArrayFocus.length == 0) {
+				else if (isCrafting == true && invArrayFocus.length == 0 && invIsNumChosen == false) {
 					for (crf = 0; crf < itemTable.length; crf++) {
 						if (itemTable[crf].isCraftable == true) {
 							invArrayFocus.push(itemTable[crf]);
 						}
-					}					
+					}										
+				}				
+				else if (isCrafting == true && invIsNumChosen == true && invArrayHolder.length == 0) {
+					invArrayHolder = invArrayFocus;
+					invArrayFocus = [];
+					invPosHolder = invPos;
+
+					for (mtl = 0; mtl < (invArrayHolder[invPosHolder].recipieArray.length / 2); mtl++) {
+						invArrayFocus.push(itemTable[invArrayHolder[invPosHolder].recipieArray[mtl * 2]]);
+					}
+
+					invArrayFocus.push(itemTable[5]);
+
+					invPos = 0;
+					// invRecipiePos = 1; 
 				}
 
 				ctxMain.drawImage(invArrayFocus[invPos].sprite, 0, -pixelSize * 2);
@@ -1067,6 +1316,7 @@
 				drawText(
 					invArrayFocus[invPos].name, 
 					textOnBlack, 
+					"normal",
 					ctxMain, 
 					mainScreen, 
 					0, 
@@ -1074,21 +1324,20 @@
 					6
 				);
 
-				invTextRaw = "";
+				if (listDoRun == false) {
+					if (typeof(invArrayFocus[invPos].quantity) == "number") {
+						invTextRaw = "*" + invArrayFocus[invPos].quantity;
+					}
+					else {
+						invTextRaw = "";
+					}
 
-				if (invArrayFocus[invPos].quantity <= 9) {
-					invTextRaw = "      *" + invArrayFocus[invPos].quantity;
-				}
-				else if (invArrayFocus[invPos].quantity > 9) {
-					invTextRaw = "     *" + invArrayFocus[invPos].quantity;
-				}
-				else if (invPos > invArrayFocus.length) {
-					invTextRaw = "";
 				}
 
 				drawText(
 					invTextRaw, 
 					textOnWhite, 
+					"center",
 					ctxMain, 
 					mainScreen, 
 					0, 
@@ -1124,7 +1373,7 @@
 					}
 				} 
 		
-				return(k);
+				return(inventory.length);
 			}
 
 			function findInLootTable() {
@@ -1194,7 +1443,7 @@
 			function drawMenu() {
 				ctxMain.drawImage(menuItems[menuPointer].sprite, 0, 0);
 				textAux = menuItems[menuPointer].description;
-				drawText(menuItems[menuPointer].title, textOnWhite, ctxMain, mainScreen, 0, mainScreen.height - textHeight, 1);
+				drawText(menuItems[menuPointer].title, textOnWhite, "normal", ctxMain, mainScreen, 0, mainScreen.height - textHeight, 1);
 
 				menuAnchor = menuIndexStack[menuIndexStack.length - 1];
 				menuMiddle = mainScreen.height - textHeight - pixelSize - squareIcon1.height;
@@ -1275,7 +1524,18 @@
 			}
 
 			function textMenuCraft() {
-				textMenuExit();
+				if (invIsNumChosen == false) {
+					chooseNumToUse();
+				}
+				else if (invIsNumChosen == true) {	
+					drawInvBlink();
+
+					if (isTaskDone == true || (buttonProxyHeld == true && invPos == invArrayFocus.length - 1)) {
+						invArrayFocus = invArrayHolder;
+						invNumberToUse = 1;
+						textMenuExit(true);
+					}
+				}
 			}
 
 			function textMenuDisplay() {
@@ -1300,11 +1560,12 @@
 						drawText(
 							listArray[tm], 
 							listTextColor, 
+							"normal",
 							ctxAux, 
 							auxScreen, 
 							0, 
 							textHeight * listDisplayCount, 
-							7
+							8
 						);
 						
 						listDisplayCount++;
@@ -1316,29 +1577,60 @@
 				}
 			}
 
-			function textMenuExit() {
+			function textMenuExit(resetPos) {
 				gameState = gamePrev;
+
 				listDoRun = false;
 				listPointer = 0;
+
+				invIsNumChosen = false;
+				invArrayHolder = [];				
+				invNumberToUse = 1;	
+				if (resetPos == true) {
+					invPos = invPosHolder;
+				}	
+
+				buttonProxyHeld = false;
 			}
 
 			function textMenuUse() {
-				if (invArrayFocus[invPos].type == "resource" || invArrayFocus[invPos].type == "relic") {
-					chooseNumToUse();
-					chooseMonster();
+				if (invArrayFocus[invPos].type == "resource") {
+					if (chooseNumToUse() > 0) {
+						if (chooseMonster() == true) {
+
+							buttonBlocked = true;
+
+							if (animationIsRecord == true) {
+								
+							}
+
+							useItem(invNumberToUse);
+							takeFromInventory(invNumberToUse);
+
+							isTaskDone = true;
+						}
+					}
+				}
+				else if (invArrayFocus[invPos].type == "relic"){
+					isTaskDone = true;
 				}
 				else if (invArrayFocus[invPos].type == "rig") {
-
+					isTaskDone = true;
 				}
 				else if (invArrayFocus[invPos].type == "seed") {
-
+					isTaskDone = true;
+				}
+				else if (invArrayFocus[invPos].type == "dev") {
+					useItem(1);
+					isTaskDone = true;
 				}
 
-				useItem(invNumberToUse);
-				takeFromInventory(invNumberToUse);
-				invNumberToUse = 1;
+				if (isTaskDone == true) {
+					isTaskDone = false;
+					buttonBlocked = false;
 
-				textMenuExit()
+					textMenuExit();
+				}
 			}
 
 			function updateMenu() {
@@ -1385,6 +1677,7 @@
 					else if (gameState == "inventory") {
 						if (invPos == (invArrayFocus.length - 1)) {
 							invArrayFocus = [];
+							invArrayHolder = [];
 							gameState = "menu";						
 						}
 						else {
@@ -1394,9 +1687,17 @@
 							listStart = true;
 						}
 					}		
-					else if (gameState == "textMenu") {
+					else if (gameState == "textMenu" && listDoRun == false) {
 						listDoRun = true;
 					}			
+					else if (listDoRun == true) {
+						if (buttonProxyHeld == false) {
+							buttonProxyHeld = true;
+						}
+						else if (buttonProxyHeld == true) {
+							buttonProxyHeld = false;
+						}
+					}
 
 					buttonIgnoreClick = true;
 					buttonHoldPending = true;
@@ -1413,22 +1714,25 @@
 							menuPointer = menuItems[menuPointer].referNext;
 						}	
 					}
-					else if (gameState == "inventory") {
-						if (invPos < invArrayFocus.length - 1) {
+					else if (gameState == "inventory" || invIsNumChosen == true) {
+						if (invPos < invArrayFocus.length - 1 && invIsNumChosen == false) {
+							invPos++;
+						}
+						else if (invArrayHolder.length > 0 && invPos < (invArrayHolder[invPosHolder].recipieArray.length / 2) && invIsNumChosen == true) {
 							invPos++;
 						}
 					}
-					else if (gameState == "textMenu") {
+					else if (gameState == "textMenu" && listDoRun == false) {
 						textMenuBlankSkip()
 					}
 				}
 				else if (isButtonFlick == true) {
-					if (gameState == "inventory") {
+					if (gameState == "inventory" || invIsNumChosen == true) {
 						if (invPos > 0) {
 							invPos--;
 						}
 					}
-					else if (gameState == "textMenu") {
+					else if (gameState == "textMenu" && listDoRun == false) {
 						for (lbc = listPointer; (lbc > 0); lbc--) {
 							if (listArray[((lbc - 1) * 3) + 1] == true) {
 								listPointer = lbc;
@@ -1470,7 +1774,7 @@
 							0,	  /* Y coord  */
 							ctxMain,  /*  context/cxt  */
 							mainScreen,  /* screen */
-							buttonJustClicked,   /* Input */
+							buttonJustClicked,   /* miscData */
 
 							invertDraw,  /* function  */
 							0,		   /* delay  */
@@ -1502,7 +1806,7 @@
 							[false, Infinity],	/* do When  */
 							[0, Infinity],		 /* do Every */
 							[],	   /*  do Chain */
-							-1	 /* do Once  */
+							-1	 /* do Once  */ 
 
 
 
@@ -1542,7 +1846,7 @@
 							0,	  /* Y coord  */
 							ctxMain,  /*  context/cxt  */
 							mainScreen,  /* screen */
-							buttonJustClicked,   /* Input */
+							buttonJustClicked,   /* miscData */
 
 							updateIdle,   /* function  */
 							0,	  /* delay  */
@@ -1627,18 +1931,18 @@
 				ctxAux.clearRect(0, 0, auxScreen.width, auxScreen.height);
 
 				drawBackground(ctxAux);
-				drawText(textAux, textOnWhite, ctxAux, auxScreen, 0, 0, 2);
+				drawText(textAux, textOnWhite, "normal", ctxAux, auxScreen, 0, 0, 2);
 				drawGrid(ctxAux);
 
 				/* "THE QUICK, BROWN FOX JUMPED OVER THE LAZY DOG." */
 			}
 
 			function drawCoins() {
-				drawText("COINS     ", textOnBlack, ctxAux, auxScreen, 0, 0, 3);
-				drawText(coinsCurrent.toString(), textOnWhite, ctxAux, auxScreen, 0, textHeight + pixelSize, 4);
+				drawText("COINS", textOnBlack, "center", ctxAux, auxScreen, 0, 0, 3);
+				drawText(coinsCurrent.toString(), textOnWhite, "center", ctxAux, auxScreen, 0, textHeight + pixelSize, 4);
 
 				if (coinsSubtracting > 0) {
-					drawText(coinsSubtracting.toString(), textOnWhite, ctxAux, auxScreen, 0, textHeight * 2 + pixelSize, 5);
+					drawText(coinsSubtracting.toString(), textOnWhite, "normal", ctxAux, auxScreen, 0, textHeight * 2 + pixelSize, 5);
 				}
 
 			}
