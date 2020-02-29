@@ -9,58 +9,128 @@
 			background-color: black;
 			 min-height: 100%;
 		}
-		html{
-  height: 100%;
-}
+
+		html{height: 100%;}
 
 </style>
-<body>
+<body onload="start()">
 	<script type="text/javascript">
-		var body = document.getElementsByTagName("body")[0];
-		var panel  = document.createElement("canvas");
-		panel.width = 200;
-		panel.height = 100;
-		var isHeldClick = false;
-		panel.style.position = "relative";
 
-		body.width = window.outerWidth;
-		body.height = window.outerHeight;
-
-		var ctx = panel.getContext("2d");
-		ctx.fillStyle = "#FFFFFF";
-		ctx.fillRect(0, 0, panel.width, panel.height);
-		body.appendChild(panel);
+//Initialize variables
+		var pixelScale = 2;
 
 		var initClickX = 0;
 		var	initClickY = 0;
+		var isHeldClick = false;
 
+		var grid = new Image();
+		grid.src = "images/GridRedo.png";
+
+		var body = document.getElementsByTagName("body")[0];
+		body.width = window.outerWidth;
+		body.height = window.outerHeight;
 		body.addEventListener("mouseleave", mouseLeaveHandler, false);
+		body.addEventListener("mousemove", mouseMoveHandler, false);
+
+
+		var panel  = document.createElement("canvas");
+		panel.width = 400 * pixelScale;
+		panel.height = 200 * pixelScale;		
+		panel.style.position = "relative";		
 		panel.addEventListener("mouseup", mouseUpHandler, false);
 		panel.addEventListener("mousedown", mouseDownHandler, false);
-		body.addEventListener("mousemove", mouseMoveHandler, false);
-		//body.addEventListener("onresize", resizeHandler, false);
+		panel.addEventListener("contextmenu", function (e) { e.preventDefault();}, false);
+
+
+		var ctx = panel.getContext("2d");
+		ctx.imageSmoothingEnabled = false;
+		
+
+		body.appendChild(panel);
+//
+
+	function start(){
+		ctx.clearRect(0,0, panel.width, panel.height);
+
+		drawBackground(panel);
+		drawGrid(panel);
+
+		requestAnimationFrame(start);
+	}
+
+
+// Panel Manipulation function
+
+	function createPanel (id, width, height, spawnX = 0, spawnY = 0) {
+
+	}
+		
+// Screen drawing functions
+
+	function scalePx(num) {
+		return (num * pixelScale);
+	}
 
 
 
-	function mouseDownHandler(event2) {
-				isHeldClick = true;
-				initClickX = event2.offsetX;
-				initClickY = event2.offsetY;
-
-
-				//ctxPlay.fillText(isHeldClick.toString(), pointerX, pointerY + 50);
+	function drawGrid(srcCanvas) {		
+		for (w = 0; w <  Math.ceil(srcCanvas.width / grid.width); w++) {		
+			for(h = 0; h < Math.ceil(srcCanvas.height / grid.height); h++) {
+ 				scaleImg(
+					srcCanvas.getContext("2d"),					
+					grid, 
+					grid.width * w, 
+					grid.height * h 
+				);
 			}
+		}
+	}
+
+
+
+	function drawBackground(srcCanvas) {
+		srcCanvas.getContext("2d").fillStyle = "#78a262";
+		srcCanvas.getContext("2d").fillRect(0, 0, panel.width, panel.height);
+	}
+
+
+
+	function scaleImg(ctx, spr, sprX, sprY, clipWidth, clipHeight, clipX, clipY){
+		if (arguments.length == 4) {
+			ctx.drawImage(spr, scalePx(sprX), scalePx(sprY), scalePx(spr.width), scalePx(spr.height));
+		}
+		else if (arguments.length == 8) {
+			ctx.drawImage(
+				spr,
+				clipX,
+				clipY,
+				clipWidth,
+				clipHeight,
+				scalePx(sprX),
+				scalePx(sprY),
+				scalePx(clipWidth),
+				scalePx(clipHeight)
+			);
+		}
+
+		else {
+			console.log("UNEXPECTED # of arguments in scaleImg().");
+		}
+	}
+// Event Handling
+
+	function mouseDownHandler(event) {
+		if (event.which == 3) {
+			isHeldClick = true;
+		}
+		initClickX = event.offsetX;
+		initClickY = event.offsetY;
+	}
 
 	function mouseMoveHandler(event){
 		if (isHeldClick) {
-
 			panel.style.margin = (event.clientY - initClickY) + "px " + "0px 0px "+ (event.clientX - initClickX) + "px";
-
-			console.log(event.clientX + ", " + event.clientY);
-			//panel.xPos = event.offsetX;
-			//panel.yPos = event.offsetY;
 		}
-
 	}
 
 
@@ -68,25 +138,18 @@
 
 	}
 
+
 	function mouseLeaveHandler() {
 		mouseUpHandler();
 	}
 
+
 	function mouseUpHandler() {
-		//pointerX = event2.offsetX;
-		//pointerY = event2.offsetY;
-		pointerX = -1;
-		pointerY = -1;
-		//ignoreClick = false;
 		isHeldClick = false;
 		initClickY = 0;
 		initClickX = 0;
-		//ctxPlay.fillText(isHeldClick.toString(), pointerX, pointerY + 50);
 	}
-
-
-
-
+//
 	</script>
 </body>
 </html>
