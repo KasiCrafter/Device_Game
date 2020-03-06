@@ -13,7 +13,7 @@
 		html{height: 100%;}
 
 </style>
-<body onload="start()">
+<body>
 	<script type="text/javascript">
 
 //Initialize variables
@@ -23,7 +23,8 @@
 		const GRID_LAYER = 2;
 		var panelIndex = [];
 	
-		var pixelScale = 4;
+		var zoomLevel = 1;
+		var pixelSize = 4;
 
 		var mouseTarget = null;
 		var initClickX = 0;
@@ -43,6 +44,7 @@
 
 		var grid = new Image();
 		grid.src = "images/GridRedo.png";
+		grid.addEventListener("load", loadAssets, false)
 
 		var tak = new Image();
 		tak.src = "images/TakuyaIdle2.png"
@@ -54,22 +56,8 @@
 		body.addEventListener("mousemove", mouseMoveHandler, false);
 
 
-		/*var panel  = document.createElement("canvas");
-		panel.width = 400;
-		panel.height = 200;		
-		panel.style.position = "relative";		
-		panel.addEventListener("mouseup", mouseUpHandler, false);
-		panel.addEventListener("mousedown", mouseDownHandler, false);
-		panel.addEventListener("contextmenu", function (e) { e.preventDefault();}, false);
-
-
-		var ctx = panel.getContext("2d");
-		ctx.imageSmoothingEnabled = false;
-		
-
-		body.appendChild(panel);*/
 //
-		var yup = new createPanel("initial", 120, 140);
+		
 
 	function start(){
 		now = performance.now();
@@ -80,27 +68,20 @@
 			deltaTime = now;
 		}
 
-
-
-		if (!stop){
-			
-			//ctx.clearRect(0,0, panel.width, panel.height);
-
-			//drawBackground(panel);
-			//scaleImg(ctx, tak, 8, 8);
-			//drawGrid(panel);
-
+		if (!stop){					
 			frameCount++;
 			requestAnimationFrame(start);
 		}
 	}
 
 
-// Panel Manipulation function
+// Panel related functions
 
-	function createPanel (id, width, height, spawnX = 0, spawnY = 0) {
+	function Panel (id, width, height, spawnX = 0, spawnY = 0) {
 		this.pack = []
-		//this.id = id;
+
+		width = width - (width % (pixelSize * zoomLevel));
+		height = height - (height % (pixelSize * zoomLevel));
 
 		for (let p = 0; p < 3; p++){
 			let tempPan  = document.createElement("canvas");			
@@ -112,13 +93,10 @@
 			tempPan.style.position = "absolute";
 			tempPan.style.zIndex = `${p}`
 			tempPan.style.margin = tempPan.yPos + "px 0px 0px " + tempPan.xPos + "px";
-			tempPan.imageSmoothingEnabled = false;
+			tempPan.getContext("2d").imageSmoothingEnabled = false;
 
-			//body.appendChild(tempPan);
-			//this.layer.push(tempPan);
 			this.pack.push(tempPan);
 		}		
-
 		drawBackground(this.pack[BACKGROUND_LAYER]);
 		drawGrid(this.pack[GRID_LAYER]);
 		addToPlay(this.pack);
@@ -141,48 +119,34 @@
 		}
 	}
 
+	function Widget(
+		srcCanvas, 
+		sprite, 
+		purpose,
+		width, height,
+		hitWidth, hitHeight, 		 
+		onDown = -1, onUp = -1, onHold = -1, onHover = -1, onLeave = -1) {
+			this.sprite = sprite;
+			this.width = width;
+			this.height = height;
+			this.purpose = purpose;
+	}
+
 		
 // Screen drawing functions
 
 	function scalePx(num) {
-		return (num * pixelScale);
+		return (num * zoomLevel);
 	}
 
 
-
 	function drawGrid(srcCanvas) {	
-		let context = srcCanvas.getContext("2d")
-		let pixelSq = pixelScale * pixelScale;
-
-		context.strokeStyle = "#90b27d";
-		context.lineWidth = pixelScale;
-
-		let spacing = pixelSq - context.lineWidth | 1;
-		context.beginPath();
-
-		console.log(`gd = ${~(srcCanvas.height / pixelSq) * -1}`);
-
-
-		for (var gd = 0; gd < ~(scalePx(srcCanvas.height) / pixelSq) * -1; gd++) {
-			context.moveTo(context.lineWidth, spacing * gd + context.lineWidth);
-			context.lineTo(scalePx(srcCanvas.width), spacing * gd + context.lineWidth);
-		}
-
-		for (var gv = 0; gv < ~(scalePx(srcCanvas.width) / pixelSq) * -1; gv++) {
-			context.moveTo(spacing * gv + context.lineWidth, context.lineWidth);
-			context.lineTo(spacing * gv + context.lineWidth, scalePx(srcCanvas.height));
-		}
-
-		context.moveTo(0, 0);
-		context.closePath();
-		context.stroke();
-		
-		
-
 		// Not using Math.ceil() here because it's too expensive. 
 		// Using cheaper hacks instead by abusing how negative numbers are rounded.
-		/*for (w = 0; w < ~(srcCanvas.width / grid.width) * -1; w++) {		
-			for(h = 0; h < ~(srcCanvas.height / grid.height) * -1; h++) {
+		// ~ is a bitwise NOT, which always makes a number negative.
+		// Then multiply by -1 to cencel out the negative.
+		for (let w = 0; w < ~(srcCanvas.width / grid.width) * -1; w++) {			
+			for(let h = 0; h < ~(srcCanvas.height / grid.height) * -1; h++) {
  				scaleImg(
 					srcCanvas.getContext("2d"),					
 					grid, 
@@ -190,27 +154,39 @@
 					grid.height * h 
 				);
 			}
-		}*/
+		}
 	}
 
 
-
 	function drawBackground(srcCanvas) {
-		//srcCanvas.getContext("2d").fillStyle = "#78a262";
 		scaleRect(srcCanvas, 0, 0, srcCanvas.width, srcCanvas.height);
 	}
 
 
+	function changeScale(srcCanvas, scale){
+		zoomLevel = scale;
+
+		srcCanvas.width = srcCanvas.width * zoomLevel;
+		srcCanvas.height = srcCanvas.height * zoomLevel;
+	}
+
+
 	function scaleRect(cv, rectX, rectY, rectWid, rectHgt) {
-			cv = cv.getContext("2d");			
-			cv.fillStyle = "#78a262";
-			cv.fillRect(scalePx(rectX), scalePx(rectY), scalePx(rectWid), scalePx(rectHgt));
+		cv = cv.getContext("2d");			
+		cv.fillStyle = "#78a262";
+		cv.fillRect(scalePx(rectX), scalePx(rectY), scalePx(rectWid), scalePx(rectHgt));
 	}
 
 
 	function scaleImg(destCtx, spr, sprX, sprY, clipWidth, clipHeight, clipX, clipY){
 		if (arguments.length == 4) {
-			destCtx.drawImage(spr, scalePx(sprX), scalePx(sprY), scalePx(spr.width), scalePx(spr.height));
+			destCtx.drawImage(
+				spr, 
+				scalePx(sprX), 
+				scalePx(sprY), 
+				scalePx(spr.width), 
+				scalePx(spr.height)
+			);
 		}
 		else if (arguments.length == 8) {
 			destCtx.drawImage(
@@ -225,7 +201,6 @@
 				scalePx(clipHeight)
 			);
 		}
-
 		else {
 			console.log("UNEXPECTED # of arguments in scaleImg().");
 		}
@@ -233,6 +208,13 @@
 
 //
 // Event Handling
+
+	function loadAssets(){
+		//stop = false;
+		var yup = new Panel("initial", 360, 210);
+		start();
+	}
+
 
 	function mouseDownHandler(event) {
 		mouseTarget = event.currentTarget;
@@ -251,7 +233,6 @@
 			for (let pn in stack) {
 				stack[pn].style.margin = (event.clientY - initClickY) + "px 0px 0px "+ (event.clientX - initClickX) + "px";
 			}
-			//mouseTarget.style.margin = (event.clientY - initClickY) + "px 0px 0px "+ (event.clientX - initClickX) + "px";
 		}
 	}
 
