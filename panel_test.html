@@ -16,48 +16,73 @@
 <body>
 	<script type="text/javascript">
 
-//Initialize variables
+		/*
+			!~~~[OKAY, HOUSE RULES!]~~~!
+			
+			When we refer to the units of measurement for the user's browser window, we use unscaled pixel values.
+			10 pixels is 10 pixels. No scaling.
 
-		const BACKGROUND_LAYER = 0;
-		const MAIN_LAYER = 1;
-		const GRID_LAYER = 2;
-		var panelIndex = [];
-	
-		var zoomLevel = 1;
-		var pixelSize = 4;
+			HOWEVER...!	
 
-		var mouseTarget = null;
-		var initClickX = 0;
-		var	initClickY = 0;
-		var isHeldClick = false;
+			When we're working with ANYTHING >>inside<< the panels (AKA canvases, AKA packs), the units of measurement 
+			are based on the smallest scaling, 1 to 1. When manipulating sprites on screen, it should at MINIMUM move
+			the number of pixels defined by the "pixelScale"; otherwise things don't line up with the grid and that's ew.
+			As such, use the designated methods within the Panel object to ensure consistency.
 
-		//DEBUG TOOLS		
-			var stop = false;
-			var frameCount = 0;
-			var now = performance.now();
-			//var debugMode = false;
-			//var rebindMode = false;
-			var deltaFr = 0;
-			var deltaTime = performance.now();
-			var frameBefore = 0;
+		*/
 
 
-		var grid = new Image();
-		grid.src = "images/GridRedo.png";
-		grid.addEventListener("load", loadAssets, false)
+// Initialize variables
 
-		var tak = new Image();
-		tak.src = "images/TakuyaIdle2.png"
+	const BACKGROUND_LAYER = 0;
+	const MAIN_LAYER = 1;
+	const GRID_LAYER = 2;
+	var panelIndex = [];
 
-		var body = document.getElementsByTagName("body")[0];
-		body.width = window.outerWidth;
-		body.height = window.outerHeight;
-		body.addEventListener("mouseleave", mouseLeaveHandler, false);
-		body.addEventListener("mousemove", mouseMoveHandler, false);
+	var zoomLevel = 2;
+	var pixelSize = 4;
+
+	var mouseTarget = "";
+	var mouseHover = "";
+	var initClickX = 0;
+	var	initClickY = 0;
+	var isHeldClick = false;
+
+	//DEBUG TOOLS		
+		var stop = false;
+		var frameCount = 0;
+		var now = performance.now();
+		//var debugMode = false;
+		//var rebindMode = false;
+		var deltaFr = 0;
+		var deltaTime = performance.now();
+		var frameBefore = 0;
 
 
-//
-		
+	var grid = new Image();
+	grid.src = "images/GridRedo.png";
+	grid.addEventListener("load", loadAssets, false);
+
+	var tak = new Image();
+	tak.src = "images/TakuyaIdle2.png";
+
+	var pon = new Image();
+	pon.src = "images/gatcha_01.png";
+
+	var body = document.getElementsByTagName("body")[0];
+	body.width = window.outerWidth;
+	body.height = window.outerHeight;
+	body.addEventListener("mouseleave", mouseLeaveHandler, false);
+	body.addEventListener("mousemove", mouseMoveHandler, false);		
+// Game loop function (What makes the game RUN)
+
+	function loadAssets(){
+		//stop = false;
+		var yup = new Panel("initial", 360, 210, 300, 0, [new Widget(pon, 5, 1)]);
+		var huh = new Panel("second", 60, 60, 0, 0, []);
+		start();
+	}
+
 
 	function start(){
 		now = performance.now();
@@ -70,36 +95,80 @@
 
 		if (!stop){					
 			frameCount++;
+
+			for (let each in panelIndex) {
+				//console.log(panelIndex[each]);
+				panelIndex[each].drawContents();
+			}
+
 			requestAnimationFrame(start);
 		}
 	}
+// Setters and Getters
 
+	function getTop(panelObject) {
+		return(panelObject.pack[GRID_LAYER]);
+	}
+	
+	function getScaledWidth(panelObject) {
+		return(scalePx(panelObject.org_width));
+	}
 
-// Panel related functions
+	function getScaledHeight(panelObject) {
+		return(scalePx(panelObject.org_height));
+	}
+// Panel functions
 
-	function Panel (id, width, height, spawnX = 0, spawnY = 0) {
-		this.pack = []
-
-		width = width - (width % (pixelSize * zoomLevel));
-		height = height - (height % (pixelSize * zoomLevel));
+	function Panel (tag, org_width, org_height, spawnX = 0, spawnY = 0, widgets = []) {
+		this.tag = tag;
+		this.pack = [];
+		this.contents = widgets;
+		this.sceneX = spawnX;
+		this.sceneY = spawnY;
+		//Scrape off the pixels which don't allow for a complete grid cell. Partial cells are ugly.
+		this.org_width = org_width - (org_width % pixelSize);
+		this.org_height = org_height - (org_height % pixelSize);
 
 		for (let p = 0; p < 3; p++){
 			let tempPan  = document.createElement("canvas");			
-			tempPan.width = scalePx(width);
-			tempPan.height = scalePx(height);
-			tempPan.xPos = spawnX;
-			tempPan.yPos = spawnY;
+			tempPan.width = scalePx(this.org_width);
+			tempPan.height = scalePx(this.org_height);
+			//tempPan.xPos = spawnX;
+			//tempPan.yPos = spawnY;
 
 			tempPan.style.position = "absolute";
-			tempPan.style.zIndex = `${p}`
-			tempPan.style.margin = tempPan.yPos + "px 0px 0px " + tempPan.xPos + "px";
+			//This is the funky way javascript does variable -> string replacements. 
+			//Here p is used to make sure the deck is stacked/displayed correctly
+			//Everything except the p you see here is MANDATORY. 
+			tempPan.style.zIndex = `${p}` 
+			tempPan.style.margin = this.sceneY + "px 0px 0px " + this.sceneX + "px";
 			tempPan.getContext("2d").imageSmoothingEnabled = false;
 
 			this.pack.push(tempPan);
 		}		
+
+		
 		drawBackground(this.pack[BACKGROUND_LAYER]);
-		drawGrid(this.pack[GRID_LAYER]);
+		drawGrid(this.pack[GRID_LAYER]);		
 		addToPlay(this.pack);
+
+ 		//Scopes are hard and it broke when I tried to manually assign it.
+ 		//Just use the tag to call this Panel object if you're picking it in specific. 
+ 		//If you don't know what you're looking for, iterate using id.
+		this.id = this.pack[GRID_LAYER].id
+		panelIndex.push(this);
+	}
+
+
+	Panel.prototype.drawContents = function() {
+		for (let wid in this.contents) {
+			scaleImg(
+				this.pack[MAIN_LAYER].getContext("2d"), 
+				this.contents[wid].sprite, 
+				this.contents[wid].panelX, 
+				this.contents[wid].panelY
+			);
+		}
 	}
 
 
@@ -111,34 +180,58 @@
 		panPack[topPanel].addEventListener("mousemove", mouseMoveHandler, false);
 		panPack[topPanel].addEventListener("contextmenu", function (e) { e.preventDefault();}, false);
 
+		panPack[topPanel].addEventListener("mouseenter", mouseEnterHandler, false);
+		panPack[topPanel].addEventListener("mouseleave", mouseLeaveHandler, false);
+		
+
 		panPack[topPanel].id = panelIndex.length;
-		panelIndex.push(panPack);
+		//panelIndex.push(panPack);
 
 		for (let pan in panPack) {
 			body.appendChild(panPack[pan]);
 		}
 	}
 
+
 	function Widget(
-		srcCanvas, 
 		sprite, 
-		purpose,
-		width, height,
-		hitWidth, hitHeight, 		 
+		panelX,
+		panelY,
+		width = sprite.width, 
+		height = sprite.height,
+		//hitWidth, hitHeight, 		 
 		onDown = -1, onUp = -1, onHold = -1, onHover = -1, onLeave = -1) {
 			this.sprite = sprite;
+			this.panelX = fitToGrid(panelX);
+			this.panelY = fitToGrid(panelY);
 			this.width = width;
 			this.height = height;
-			this.purpose = purpose;
 	}
 
+	Widget.prototype.onmouseover = function(event) {
+		event.currentTarget.style.cursor = "pointer";
+	}
+
+
+	function fitToGrid(numOfGridUnits) {
+		return(numOfGridUnits * pixelSize);
+	}
 		
+	/*Widget.prototype.onmouseout = function(event) {
+		event.currentTarget.style.cursor = "default";
+	}*/
 // Screen drawing functions
 
 	function scalePx(num) {
 		return (num * zoomLevel);
 	}
 
+	function changeScale(srcCanvas, scale){
+		zoomLevel = scale;
+
+		srcCanvas.width = srcCanvas.width * zoomLevel;
+		srcCanvas.height = srcCanvas.height * zoomLevel;
+	}
 
 	function drawGrid(srcCanvas) {	
 		// Not using Math.ceil() here because it's too expensive. 
@@ -157,26 +250,9 @@
 		}
 	}
 
-
 	function drawBackground(srcCanvas) {
 		scaleRect(srcCanvas, 0, 0, srcCanvas.width, srcCanvas.height);
 	}
-
-
-	function changeScale(srcCanvas, scale){
-		zoomLevel = scale;
-
-		srcCanvas.width = srcCanvas.width * zoomLevel;
-		srcCanvas.height = srcCanvas.height * zoomLevel;
-	}
-
-
-	function scaleRect(cv, rectX, rectY, rectWid, rectHgt) {
-		cv = cv.getContext("2d");			
-		cv.fillStyle = "#78a262";
-		cv.fillRect(scalePx(rectX), scalePx(rectY), scalePx(rectWid), scalePx(rectHgt));
-	}
-
 
 	function scaleImg(destCtx, spr, sprX, sprY, clipWidth, clipHeight, clipX, clipY){
 		if (arguments.length == 4) {
@@ -206,18 +282,18 @@
 		}
 	}
 
-//
-// Event Handling
-
-	function loadAssets(){
-		//stop = false;
-		var yup = new Panel("initial", 360, 210);
-		start();
+	function scaleRect(cv, rectX, rectY, rectWid, rectHgt) {
+		cv = cv.getContext("2d");			
+		cv.fillStyle = "#78a262";
+		cv.fillRect(scalePx(rectX), scalePx(rectY), scalePx(rectWid), scalePx(rectHgt));
 	}
+// Event Handling
 
 
 	function mouseDownHandler(event) {
 		mouseTarget = event.currentTarget;
+		//Save this for draggin canvases over each other without grid funkiness
+		//console.log(panelIndex[mouseTarget.id].pack[GRID_LAYER]);
 
 		if (event.which == 3) {
 			isHeldClick = true;
@@ -227,34 +303,51 @@
 	}
 
 	function mouseMoveHandler(event){
-		if (isHeldClick && mouseTarget.nodeName == "CANVAS") {
-			let stack = panelIndex[mouseTarget.id]
+		if (mouseTarget != ""){
+			let chosenPanel = panelIndex[mouseTarget.id];			
 
-			for (let pn in stack) {
-				stack[pn].style.margin = (event.clientY - initClickY) + "px 0px 0px "+ (event.clientX - initClickX) + "px";
+			if (mouseTarget.nodeName == "CANVAS") {			
+				if (isHeldClick) {		
+					for (let pn in chosenPanel.pack) {
+						chosenPanel.sceneX = event.clientX - initClickX;
+						chosenPanel.sceneY = event.clientY - initClickY;
+
+						//margin format: pixelsFromTop, pixelsFromRight(redundant), pixelsFromBottom(redundant), pixelsFromLeft
+						chosenPanel.pack[pn].style.margin = chosenPanel.sceneY + "px 0px 0px "+ chosenPanel.sceneX + "px";
+					}
+				}
 			}
+		}
+		else if(mouseHover != "" && mouseHover.nodeName == "CANVAS"){ //&& panelIndex[mouseTarget.id].contents.length > 0) {
+			let chosenPanel = panelIndex[mouseHover.id];
+			console.log("INSIDE");
+			let wohoo = chosenPanel.pack[MAIN_LAYER].getContext("2d");
+			wohoo.save();
+			wohoo.fillStyle = "#000000";
+			wohoo.fillRect(event.offsetX,event.offsetY, 10, 10);
+			wohoo.restore();
 		}
 	}
 
 
-	function mouseEnterHandler() {
-
+	function mouseEnterHandler(event) {
+		console.log("eyy");
+		mouseHover = event.currentTarget;
 	}
 
 
 	function mouseLeaveHandler() {
-		mouseUpHandler();
+		mouseHover = "";
 	}
 
 
-	function mouseUpHandler() {
-		mouseTarget = null;
+	function mouseUpHandler() {		
+		//console.log(panelIndex[mouseTarget.id]);
+		mouseTarget = "";
 		isHeldClick = false;
 		initClickY = 0;
 		initClickX = 0;
-	}
-	
-//
+	}	
 	</script>
 </body>
 </html>
